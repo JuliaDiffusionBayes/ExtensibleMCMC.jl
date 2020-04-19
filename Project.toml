@@ -3,11 +3,21 @@ uuid = "23b8d773-6ad0-4cfa-a2a0-a1f8bd765eb5"
 authors = ["Sebastiano Grazzi", "Frank van der Meulen", "Marcin Mider", "Moritz Schauer"]
 version = "0.1.0"
 
+[deps]
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
 [compat]
 julia = "1.4"
 
 [extras]
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test"]
+test = ["Test", "StaticArrays", "Distributions"]

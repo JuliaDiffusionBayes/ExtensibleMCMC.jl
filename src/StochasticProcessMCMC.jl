@@ -1,7 +1,7 @@
-module ExtensibleMCMC
+module StochasticProcessMCMC
 
     using StaticArrays, Distributions, Random, DataStructures, LinearAlgebra
-    using Dates
+    using Dates, RecipesBase
 
     include("types.jl") # ✔
     include("utility_functions.jl") # ✔
@@ -19,7 +19,8 @@ module ExtensibleMCMC
     include("workspaces.jl")
     _DIR = "example"
     include(joinpath(_DIR, "gsn_target.jl"))
-
+    _DIR = "recipes"
+    include(joinpath(_DIR, "online_chains.jl"))
 
     export MCMC
     export UniformRandomWalk
@@ -27,5 +28,5 @@ module ExtensibleMCMC
     export GenericMCMCBackend
     export GsnTargetLaw
     export run!
-
+    export PlottingCallback
 end # module
