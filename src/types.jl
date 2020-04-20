@@ -122,3 +122,8 @@ struct GenericMCMCBackend <: MCMCBackend end
 
 
 abstract type ChainStats end
+
+struct Previous end
+struct Proposal end
+struct PreMCMCStep end
+struct PostMCMCStep end

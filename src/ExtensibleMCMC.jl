@@ -4,6 +4,12 @@ module ExtensibleMCMC
     using Dates
 
     include("types.jl") # ✔
+
+    const __PREVIOUS = Previous()
+    const __PROPOSAL = Proposal()
+    const __PRESTEP = PreMCMCStep()
+    const __POSTSTEP = PostMCMCStep()
+
     include("utility_functions.jl") # ✔
     include("priors.jl")
     include("schedule.jl") # ✔
@@ -20,12 +26,10 @@ module ExtensibleMCMC
     _DIR = "example"
     include(joinpath(_DIR, "gsn_target.jl"))
 
-
     export MCMC
     export UniformRandomWalk
     export RandomWalkUpdate
     export GenericMCMCBackend
     export GsnTargetLaw
     export run!
-
 end # module

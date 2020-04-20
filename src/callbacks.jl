@@ -36,38 +36,55 @@ end
 
 function update!(
         callbacks::Vector{<:Callback},
-        ws::LocalWorkspace,
         global_ws::GlobalWorkspace,
-        step
+        ws::LocalWorkspace,
+        step,
+        flag,
     )
     for callback in callbacks
-        check_if_execute(callback, step) && execute!(callback, ws, global_ws, step)
+        check_if_execute(callback, step, flag) && execute!(
+            callback, global_ws, ws, step, flag
+        )
     end
 end
 
 
 
 """
-    check_if_execute(callback::Callback, iter)
+    check_if_execute(callback::Callback, step, flag)
 
-Check if `callback` is supposed to be executed at the mcmc iteration `iter`.
+Check if `callback` is supposed to be executed at the mcmc step `step` with
+pre- post- update flag `flag`.
 """
-check_if_execute(callback::Callback, iter) = false
+check_if_execute(callback::Callback, step, flag) = false
 
 """
-    execute!(callback::Callback, ws::GlobalWorkspace, iter)
+    execute!(
+        callback::Callback,
+        global_ws::GlobalWorkspace,
+        local_ws::LocalWorkspace,
+        step,
+        flag
+    )
 
 Execute the `callback`.
 """
-function execute!(callback::Callback, ws::LocalWorkspace, gws::GlobalWorkspace, iter) end
+function execute!(
+        callback::Callback,
+        global_ws::GlobalWorkspace,
+        local_ws::LocalWorkspace,
+        step,
+        flag
+    )
+end
 
 """
-    cleanup!(callback::Callback, ws::GlobalWorkspace, iter)
+    cleanup!(callback::Callback, ws::GlobalWorkspace, step)
 
 The last call to callback, after all MCMC steps and before exiting the function
 `run`.
 """
-function cleanup!(callback::Callback, ws::GlobalWorkspace, iter) end
+function cleanup!(callback::Callback, ws::GlobalWorkspace, step) end
 
 
 #===============================================================================
@@ -163,7 +180,7 @@ init!(callback::SavingCallback, ws::GlobalWorkspace) = (open(callback.filename, 
 Return `true` if the mcmc iteration `iter` is one at which an intermediate save
 is to be made.
 """
-function check_if_execute(callback::SavingCallback, iter)
+function check_if_execute(callback::SavingCallback, step, flag)
     !callback.save_intermediate && return false
     iter in callback.save_at_iters && return true
     false
@@ -174,7 +191,7 @@ end
 
 Save the entire MCMC chain, history of proposals, acceptance history etc.
 """
-function cleanup!(callback::SavingCallback, ws::GlobalWorkspace, iter)
+function cleanup!(callback::SavingCallback, ws::GlobalWorkspace, step)
     callback.save_at_the_end && execute!(callback, ws, iter)
 end
 
@@ -185,7 +202,7 @@ end
 Save the chain of accepted states, proposed states and acceptance history to
 the disk.
 """
-function execute!(sc::SavingCallback, lws::LocalWorkspace, ws::GlobalWorkspace, iter)
+function execute!(sc::SavingCallback, ws::GlobalWorkspace, lws::LocalWorkspace, step, flag)
     iter_start = find_starting_idx(sc, iter)
     open(sc.filename, "a") do f
         for i in iter_start:(iter-1)

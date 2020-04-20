@@ -56,19 +56,14 @@ function __run!(global_ws, local_wss, updates, schedule, callbacks)
     # prompts for confirmation of early exit and whether to save the most recent
     # state.
     for step in schedule
-        local_ws, local_update = update!(
-            local_wss[step.pidx],
+        local_ws, local_update = update_workspaces!(
             updates[step.pidx],
             global_ws,
+            local_wss[step.pidx],
             step
         )
-        #TODO think when to execute thesecallbacks:
-        # pre-, post- or (pre- and post-) the θ-update, probably just add the
-        # pre- and post- flags and execute both
-        update!(callbacks, local_ws, global_ws, step)
-        update!(local_update, local_ws, global_ws, step)
-        #for callback in callbacks
-        #    update!(callback, local_ws, global_ws, step)
-        #end
+        update!(callbacks, global_ws, local_ws, step, __PRESTEP)
+        update!(local_update, global_ws, local_ws, step)
+        update!(callbacks, global_ws, local_ws, step, __POSTSTEP)
     end
 end
