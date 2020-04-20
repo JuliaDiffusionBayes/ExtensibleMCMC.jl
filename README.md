@@ -48,6 +48,7 @@ end
 ```
 That's it, the rest can be handled by standard functions implemented in `ExtensibleMCMC.jl`. We may now generate some data:
 ```julia
+using Random
 Random.seed!(10)
 μ, Σ = [1.0, 2.0], [1.0 0.5; 0.5 1.0]
 trgt = MvNormal(μ, Σ)
