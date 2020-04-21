@@ -30,6 +30,7 @@ module ExtensibleMCMC
     export UniformRandomWalk
     export RandomWalkUpdate
     export GenericMCMCBackend
+    export GenericChainStats
     export GsnTargetLaw
     export run!
 end # module
