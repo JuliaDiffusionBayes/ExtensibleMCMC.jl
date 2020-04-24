@@ -6,6 +6,8 @@
 
 [NOTE this package is currently under development; some functionality explained in the documentation will not work (but it should be indicated where this is the case)]
 
+> WARNING! The steps outlined in this documentation will not work yet, because there are some wrapper functions that are not implemented yet. We will fix it as soon as possible.
+
 ExtensibleMCMC.jl
 - provides a modular implementation of the **Markov chain Monte Carlo (MCMC)** algorithm
 - comes with essential functionality that you'd expect from your MCMC sampler
