@@ -17,7 +17,7 @@ that and act accordingly.
 mutable struct MCMCSchedule
     num_mcmc_steps::Int64
     num_updates::Int64
-    start::NamedTuple{(:mcmciter, :pidx),Tuple{Int64,Int64}}
+    start::NamedTuple{(:prev_pidx, :mcmciter, :pidx),Tuple{Nothing,Int64,Int64}}
     exclude_updates::DefaultDict{Int64,OrdinalRange{Int64,Int64},UnitRange{Int64}}
 
     function MCMCSchedule(
@@ -34,7 +34,7 @@ mutable struct MCMCSchedule
         new(
             num_mcmc_steps,
             num_updates,
-            (mcmciter=1, pidx=1),
+            (prev_pidx=nothing, mcmciter=1, pidx=1),
             tuples_excluded_updates
         )
     end
@@ -50,7 +50,13 @@ performed.
 """
 function Base.iterate(iter::MCMCSchedule, state=iter.start)
     state.mcmciter > iter.num_mcmc_steps && return nothing
-    return (state, transition(iter, state))
+    new_state_tmp = (
+        prev_mcmciter = state.mcmciter,
+        prev_pidx = state.pidx,
+        mcmciter = state.mcmciter,
+        pidx = state.pidx,
+    )
+    return (state, transition(iter, new_state_tmp))
 end
 
 
@@ -63,6 +69,8 @@ all updates that are to be excluded, as per `schedule.exclude_updates`.
 function transition(schedule::MCMCSchedule, state)
     pidx_to_reset = (state.pidx == schedule.num_updates)
     new_state = (
+        prev_mcmciter = state.prev_mcmciter,
+        prev_pidx = state.prev_pidx,
         mcmciter = state.mcmciter + pidx_to_reset,
         pidx = ( pidx_to_reset ? 1 : state.pidx + 1 ),
     )

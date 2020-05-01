@@ -71,7 +71,6 @@ with accepted and proposal `state` set as parameters.
 """
 struct GenericGlobalWorkspace{T,SW,TL} <: GlobalWorkspace{T}
     sub_ws::SW
-    ll::Vector{Float64}
     P::TL
     P°::TL
 end
@@ -104,7 +103,6 @@ function init_global_workspace(
     )
     GenericGlobalWorkspace{T,typeof(sub_ws),typeof(data.P)}(
         sub_ws,
-        Float64[-Inf],
         deepcopy(data.P),
         deepcopy(data.P),
     )
@@ -116,21 +114,39 @@ end
     struct StandardLocalSubworkspace{T} <: LocalWorkspace{T}
         state::Vector{T}
         ll::Vector{Float64}
-        ll_history::Vector{Float64}
+        ll_history::Vector{Vector{Float64}}
+        ∇ll::Vector{Vector{Float64}}
+        momentum::Vector{Float64}
     end
 
 Standard containers likely to be present in every local workspace. `state` is
 the currently accepted *subset* of parameter θ that the corresponding update
 operates on, `ll` is the corresponding log-likelihood and `ll_history` is the
-chain of log-likelihoods.
+chain of log-likelihoods. A single `ll` is of the type `Vector{Float64}` to
+reflect the fact that a problem might admit a natural factorisation into
+independent components that may be operated on independently, in parallel with
+each entry in `ll` corresponding to a separate subcomponent. `∇ll` is the
+gradient of log-likelihood (needed by gradient-based algorithms) and `momentum`
+is the variable needed for the Hamiltionan dynamics. `∇ll` and `momentum` may be
+simply left untouched if the problem does not need them.
 """
 struct StandardLocalSubworkspace{T} <: LocalWorkspace{T}
     state::Vector{T}
     ll::Vector{Float64}
-    ll_history::Vector{Float64}
+    ll_history::Vector{Vector{Float64}}
+    ∇ll::Vector{Vector{Float64}}
+    momentum::Vector{Float64}
 
-    function StandardLocalSubworkspace(state::Vector{T}, M) where T
-        new{T}(deepcopy(state), Float64[-Inf], Vector{Float64}(undef, M))
+    function StandardLocalSubworkspace(
+            state::Vector{T}, M; num_indep_blocks=1
+        ) where T
+        new{T}(
+            deepcopy(state),
+            Float64[-Inf for _=1:num_indep_blocks],
+            [zeros(Float64, num_indep_blocks) for _=1:M],
+            [zeros(Float64, length(state)) for _=1:num_indep_blocks],
+            zero(state),
+        )
     end
 end
 

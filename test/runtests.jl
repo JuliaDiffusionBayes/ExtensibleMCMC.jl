@@ -24,7 +24,7 @@ const eMCMC = ExtensibleMCMC
     )
 
     for (i,s) in enumerate(schedule)
-        @test expected[i] == Tuple(s)
+        @test expected[i] == (s.mcmciter, s.pidx)
         s.mcmciter == 5 && s.pidx == 3 && eMCMC.reschedule!(
             schedule, 2, [4], [(5, 8:9)]
         )

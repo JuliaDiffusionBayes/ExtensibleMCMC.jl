@@ -1,4 +1,4 @@
-# Overview of `ExtensibleMCMC.jl`'s basic functionality
+# [Overview of `ExtensibleMCMC.jl`'s basic functionality](@id get_started)
 
 For simplest problems all that needs to be provided by the user is a `target law`, a function that sets the parameters of the `target law` and a function that evaluates the log-likelihood at the observations. The remaining options can be chosen from a set of objects already pre-defined in this package. Let's look at an example.
 

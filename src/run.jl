@@ -22,7 +22,7 @@ and corresponding ranges of MCMC iterations at which given updates are supposed
 to be omitted. Additional named arguments are passed onto initializers of global
 workspace and depend on the chosen `MCMCBackend`.
 """
-function run!(mcmc::MCMC, num_mcmc_steps, data, θinit, callbacks; kwargs...)
+function run!(mcmc::MCMC, num_mcmc_steps, data, θinit, callbacks=Callback[]; kwargs...)
     init!(
         mcmc,
         num_mcmc_steps,
@@ -38,7 +38,7 @@ function run!(mcmc::MCMC, num_mcmc_steps, data, θinit, callbacks; kwargs...)
     for callback in callbacks
         cleanup!(callback, mcmc.workspace, num_mcmc_steps)
     end
-    mcmc.workspace
+    mcmc.workspace, local_wss
 end
 
 """
@@ -60,7 +60,8 @@ function __run!(global_ws, local_wss, updates, schedule, callbacks)
             updates[step.pidx],
             global_ws,
             local_wss[step.pidx],
-            step
+            step,
+            (step.prev_pidx===nothing ? nothing : local_wss[step.prev_pidx])
         )
         update!(callbacks, global_ws, local_ws, step, __PRESTEP)
         update!(local_update, global_ws, local_ws, step)

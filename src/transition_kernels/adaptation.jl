@@ -274,7 +274,7 @@ Adaptive readjustment of the range for sampling uniforms by the random walker.
 function readjust!(rw::UniformRandomWalk, adpt::AdaptationUnifRW, mcmc_iter)
     δ = compute_δ(adpt, mcmc_iter)
     a_r = acceptance_rate!(adpt)
-    ϵ = compute_ϵ(rw.ϵ, param, a_r, δ)
+    ϵ = compute_ϵ(rw.ϵ, adpt, a_r, δ)
     rw.ϵ = ϵ
     ϵ
 end
@@ -288,6 +288,16 @@ function register!(adpt::AdaptationUnifRW, accepted::Bool, ::Any)
     adpt.accepted += accepted
     adpt.proposed += 1
 end
+
+"""
+    time_to_update(adpt::AdaptationUnifRW)
+
+Return true if it's the time to update the ϵ parameter of Uniform random walks
+"""
+function time_to_update(adpt::AdaptationUnifRW)
+    adpt.proposed >= adpt.adapt_every_k_steps
+end
+
 
 """
     compute_δ(p, mcmc_iter)
@@ -309,8 +319,8 @@ end
 ϵ is moved by δ to adapt to target acceptance rate
 """
 function compute_ϵ(ϵ_old, p, a_r, δ, flip=1.0, f=identity, finv=identity)
-    ϵ = finv(f(ϵ_old) + flip*(2*(a_r > p.target_accpt_rate)-1)*δ)
-    ϵ = max(min(ϵ,  p.max), p.min)    # trim excessive updates
+    ϵ = finv.(f.(ϵ_old) .+ flip.*(2 .*(a_r > p.target_accpt_rate)-1).*δ)
+    ϵ = max.(min.(ϵ,  p.max), p.min)    # trim excessive updates
 end
 
 #===============================================================================

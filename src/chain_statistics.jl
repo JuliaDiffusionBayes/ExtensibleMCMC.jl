@@ -38,7 +38,7 @@ mutable struct GenericChainStats{T} <: ChainStats
 end
 
 
-function update!(
+function update_stats!(
         cs::GenericChainStats,
         global_ws::GlobalWorkspace,
         local_ws::LocalWorkspace,

@@ -28,9 +28,12 @@ module ExtensibleMCMC
 
     export MCMC
     export UniformRandomWalk
+    export AdaptationUnifRW
     export RandomWalkUpdate
     export GenericMCMCBackend
     export GenericChainStats
     export GsnTargetLaw
     export run!
+    export get_decorators, isdecorator
+    export ImproperPosPrior, ImproperPrior
 end # module
