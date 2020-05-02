@@ -1,7 +1,7 @@
 # Updates
 Updates are structs that hold instructions about the MCMC updates. Apart from ... each `update` must implement
 ```@docs
-Extensible.log_transition_density(updt::MCMCParamUpdate, θ, θ°)
+ExtensibleMCMC.log_transition_density(updt::ExtensibleMCMC.MCMCParamUpdate, θ, θ°)
 ```
 
 ## Metropolis Hastings with random walk proposals
@@ -36,10 +36,22 @@ ExtensibleMCMC.AdaptationUnifRW
 To see a simple example of a difference that adaptation can make see the [Tutorial on estimating the mean of a simple bivariate Gaussian](@ref tutorial_mean_of_bivariate_gsn_adpt)
 
 ### Gaussian Random Walker
-
-#### Restricting coordinates to positive values
+Another implemented type of random walker is a Gaussian random walker.
+```@docs
+ExtensibleMCMC.GaussianRandomWalk
+```
+It can be used for single-site updates as well as joint updates.
 
 #### Adaptation
+The adaptation of `GaussianRandomWalk` may no longer be done as in the case of `UniformRandomWalk` (in principle, with the exception of 1-d, but this is not implemented), as the entire covariance matrix needs to be learnt now. This is instead implemented with Haario-type updates.
+```@docs
+ExtensibleMCMC.HaarioTypeAdaptation
+```
+
+In addition, in order to run `HaarioTypeAdaptation`, the `update` transition kernel must be set to `GaussianRandomWalkMix` instead of just `GaussianRandomWalk`, for obvious reasons that follow from the description of the former:
+```@docs
+ExtensibleMCMC.GaussianRandomWalkMix
+```
 
 ## Metropolis-adjusted Langevin algorithm (MALA)
 

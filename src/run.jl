@@ -65,6 +65,7 @@ function __run!(global_ws, local_wss, updates, schedule, callbacks)
         )
         update!(callbacks, global_ws, local_ws, step, __PRESTEP)
         update!(local_update, global_ws, local_ws, step)
+        update_adaptation!(updates, global_ws, local_ws, step)
         update!(callbacks, global_ws, local_ws, step, __POSTSTEP)
     end
 end

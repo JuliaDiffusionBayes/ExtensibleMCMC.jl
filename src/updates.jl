@@ -68,15 +68,33 @@ function compute_gradients_and_momenta!(
 end
 
 function update_adaptation!(
-        accepted::Bool, updt::MCMCParamUpdate, global_ws, local_ws, step, i
+        updates::AbstractArray{<:MCMCUpdate},
+        global_ws::GlobalWorkspace,
+        local_ws::LocalWorkspace,
+        step
+    )
+    accepted = local_ws.acceptance_history[step.mcmciter]
+    for (i, updt) in enumerate(updates)
+        update_adaptation!(accepted, updt, global_ws, step, i)
+    end
+end
+
+register_only_on_my_turn(::Val{true}, args...) = false
+register_only_on_my_turn(::Val{false}, args...) = true
+time_to_update(::Val{false}, args...) = false
+
+function update_adaptation!(
+        accepted::Bool, updt::MCMCParamUpdate, global_ws, step, i
     )
     typeof(updt.adpt) <: NoAdaptation && return
-    register!(updt.adpt, accepted, global_ws.sub_ws.state[updt.loc2glob_idx])
-    ttu = time_to_update(updt.adpt)
-    ttu && println("acceptance rate: ", acceptance_rate(updt.adpt))
-    ttu && println("old ϵ: ", updt.rw.ϵ)
-    time_to_update(updt.adpt) && readjust!(updt.rw, updt.adpt, step.mcmciter)
-    ttu && println("new ϵ: ", updt.rw.ϵ)
+    _my_turn = Val(step.pidx==i)
+    register_only_on_my_turn(_my_turn, updt.adpt) && return
+    register!(updt, updt.adpt, accepted, global_ws.sub_ws.state[updt.loc2glob_idx])
+    ttu = time_to_update(_my_turn, updt.adpt)
+    #ttu && println("acceptance rate: ", acceptance_rate(updt.adpt))
+    #ttu && println("old ϵ: ", updt.rw.ϵ)
+    ttu && readjust!(updt.rw, updt.adpt, step.mcmciter)
+    #ttu && println("new ϵ: ", updt.rw.ϵ)
 end
 
 
@@ -130,7 +148,6 @@ function transfer_local_knowledge!(
         step,
         prev_ws,
     )
-    println()
     local_ws.sub_ws.ll .= prev_ws.sub_ws.ll_history[step.prev_mcmciter]
 end
 
@@ -319,7 +336,6 @@ function register_accept_reject_results!(
     accepted && ( θ[updt.loc2glob_idx] .= local_ws.sub_ws°.state )
     global_ws.sub_ws.state_history[step.mcmciter][step.pidx] .= θ
     new_parameters!(global_ws.P, θ)
-    update_adaptation!(accepted, updt, global_ws, local_ws, step, i)
 end
 
 new_parameters!(P, θ) = new_parameters!(P, 1:length(θ), θ)

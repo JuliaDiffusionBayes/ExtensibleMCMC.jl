@@ -2,8 +2,8 @@
 
     Various random walkers, including:
         ✔ uni- and multivariate Uniform random walk
-        ✗ uni- and multivariate Gaussian random walk
-        ✗ mixture of two Gaussian random walks
+        ✔ multivariate Gaussian random walk
+        ✔ mixture of two Gaussian random walks
     All of the above allow for incorporating a restriction on the positivity
     of any chosen subset of parameter's coordinates.
 
@@ -85,3 +85,119 @@ end
 #===============================================================================
                             Gaussian random walk
 ===============================================================================#
+"""
+    mutable struct GaussianRandomWalk{T} <: RandomWalk
+        Σ::Symmetric{T,Array{T,2}}
+        pos::Vector{Bool}
+    end
+
+A Gaussian random walker that first transforms all coordinates restricted to be
+positive to a log-scale via log(θᵢ), then moves according to θ°∼N(θ, Σ) and
+finally transforms the restricted coordinates back to the original scale via
+exp(θᵢ°). Restrictions are specified in the vector `pos` (and no restrictions
+correspond to all entries in `pos` being false).
+"""
+mutable struct GaussianRandomWalk{T} <: RandomWalk
+    Σ::Symmetric{T,Array{T,2}}
+    pos::Vector{Bool}
+
+    function GaussianRandomWalk(Σ, pos=nothing)
+        @assert size(Σ, 1) == size(Σ, 2)
+        Σ = reshape(Σ, (size(Σ, 1), size(Σ, 2)))
+        T = eltype(Σ)
+        pos = (pos === nothing) ? fill(false, size(Σ, 1)) : pos
+        new{T}(Symmetric(Σ), pos)
+    end
+end
+
+Base.eltype(::GaussianRandomWalk{T}) where T = T
+Base.length(rw::GaussianRandomWalk) = size(rw.Σ, 1)
+remove_constraints!(rw::GaussianRandomWalk, θ) = (θ[rw.pos] .= log.(θ[rw.pos]))
+reimpose_constraints!(rw::GaussianRandomWalk, θ) = (
+    θ[rw.pos] .= exp.(θ[rw.pos])
+)
+
+Base.rand(rw::GaussianRandomWalk, θ) = rand(Random.GLOBAL_RNG, rw, θ)
+
+function Base.rand(rng::Random.AbstractRNG, rw::GaussianRandomWalk, θ)
+    remove_constraints!(rw, θ)
+    θ° = rand(MvNormal(θ, rw.Σ))
+    reimpose_constraints!(rw, θ°)
+    reimpose_constraints!(rw, θ)
+    θ°
+end
+
+function Random.rand!(rw::GaussianRandomWalk, θ, θ°)
+    rand!(Random.GLOBAL_RNG, rw, θ, θ°)
+end
+
+function Random.rand!(rng::Random.AbstractRNG, rw::GaussianRandomWalk, θ, θ°)
+    θ° .= rand(rng, rw, θ)
+end
+
+_logjacobian(rw::GaussianRandomWalk, θ) = -sum(log.(θ[rw.pos]))
+
+function Distributions.logpdf(rw::GaussianRandomWalk, θ, θ°)
+    logJ = _logjacobian(rw, θ°)
+    remove_constraints!(rw, θ)
+    remove_constraints!(rw, θ°)
+    lpdf = logpdf(MvNormal(θ, rw.Σ), θ°) + logJ
+    reimpose_constraints!(rw, θ)
+    reimpose_constraints!(rw, θ°)
+    lpdf
+end
+
+#===============================================================================
+            A mixture of two multidimensional Gaussian random walks
+===============================================================================#
+"""
+    mutable struct GaussianRandomWalkMix{T} <: RandomWalk
+        gsn_A::GaussianRandomWalk{T}
+        gsn_B::GaussianRandomWalk{T}
+        λ::Float64
+    end
+
+A mixture of two Gaussian random walkers. It performs updates according to
+Xᵢ₊₁ = Xᵢ + λZₐ + (1-λ)Zᵦ, where Zₐ ∼ N(0,Σₐ) and Zᵦ ∼ N(0, Σᵦ) (with Xᵢ being
+already appropriately log-transformed if needed).
+"""
+mutable struct GaussianRandomWalkMix{T} <: RandomWalk
+    gsn_A::GaussianRandomWalk{T}
+    gsn_B::GaussianRandomWalk{T}
+    λ::Float64
+
+    function GaussianRandomWalkMix(Σ_A, Σ_B, λ=0.5, pos=nothing)
+        @assert 0.0 <= λ <= 1.0
+        @assert size(Σ_A) == size(Σ_B)
+        gsn_A = GaussianRandomWalk(Σ_A, pos)
+        gsn_B = GaussianRandomWalk(Σ_B, pos)
+        T = eltype(gsn_A)
+        new{T}(gsn_A, gsn_B, λ)
+    end
+end
+
+Base.eltype(::GaussianRandomWalkMix{T}) where T = T
+Base.length(rw::GaussianRandomWalkMix) = length(rw.gsn_A)
+
+Base.rand(rw::GaussianRandomWalkMix, θ) = rand(Random.GLOBAL_RNG, rw, θ)
+
+function Base.rand(rng::Random.AbstractRNG, rw::GaussianRandomWalkMix, θ)
+    rw_i = pick_kernel(rng, rw)
+    rand(rng, rw_i, θ)
+end
+
+Random.rand!(rw::GaussianRandomWalkMix, θ, θ°) = rand!(Random.GLOBAL_RNG, rw, θ, θ°)
+
+function Random.rand!(rng::Random.AbstractRNG, rw::GaussianRandomWalkMix, θ, θ°)
+    rw_i = pick_kernel(rng, rw)
+    rand!(rng, rw_i, θ, θ°)
+end
+
+function pick_kernel(rng::Random.AbstractRNG, rw::GaussianRandomWalkMix)
+    rand(rng, Bernoulli(rw.λ)) ? rw.gsn_B : rw.gsn_A
+end
+
+function Distributions.logpdf(rw::GaussianRandomWalkMix, θ, θᵒ)
+    log( (1-rw.λ)*exp(logpdf(rw.gsn_A, θ, θᵒ))
+          + rw.λ *exp(logpdf(rw.gsn_B, θ, θᵒ)) )
+end

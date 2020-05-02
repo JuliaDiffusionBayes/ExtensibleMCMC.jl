@@ -3,7 +3,7 @@
     Adaptation schemes for adjusting parameter update steps. Contains
         ✔   Adaptation of uniform random walkers by changing ϵ to target the
             acceptance rate
-        ✗   Haario-type adaptive schemes that adjusts the correlation of
+        ✔   Haario-type adaptive schemes that adjusts the correlation of
             a Gaussian random walker to match that of the empirical covariance
         ✗   Adaptations for MALA algorithms, google search gives
             https://link.springer.com/article/10.1007/s11009-006-8550-0 (compare
@@ -284,7 +284,7 @@ end
 
 Register the result of the acceptance decision in the Metropolis-Hastings step.
 """
-function register!(adpt::AdaptationUnifRW, accepted::Bool, ::Any)
+function register!(updt, adpt::AdaptationUnifRW, accepted::Bool, ::Any)
     adpt.accepted += accepted
     adpt.proposed += 1
 end
@@ -294,7 +294,7 @@ end
 
 Return true if it's the time to update the ϵ parameter of Uniform random walks
 """
-function time_to_update(adpt::AdaptationUnifRW)
+function time_to_update(::Val{true}, adpt::AdaptationUnifRW)
     adpt.proposed >= adpt.adapt_every_k_steps
 end
 
@@ -326,7 +326,80 @@ end
 #===============================================================================
                         Haario-type adaptive scheme
 ===============================================================================#
+"""
+    mutable struct HaarioTypeAdaptation{T,TF} <: Adaptation
+        mean::Vector{T}
+        cov::Matrix{T}
+        adapt_every_k_steps::Int64
+        scale::Float64
+        N::Int64
+        M::Int64
+        fλ::TF
+    end
 
-mutable struct HaarioTypeAdaptation <: Adaptation
+A struct containing information about the way in which to adapt the steps of the
+Gaussian random walker in a scheme: Xᵢ₊₁ = λZ+(1-λ)W, where Z ∼ N(Xᵢ, cI) and
+W ∼ N(Xᵢ, Σₐ), with Σₐ the covariance matrix that the adaptive scheme aims to
+learn. `mean` and `cov` are the empirical mean and covariance of the
+(appropriately log-transformed) local `state` vector. Every
+`adapt_every_k_steps` number of steps an adaptation is performed. `scale` is
+a scaling for going from the empirical covariance to the covariance of the
+Gaussian random walker. `N` is the total number of terms based on which the
+`mean` and `cov` were computed, `M` is the number of updates since the last call
+to adaptation and `fλ` is a function for determining the `λ` weight.
+"""
+mutable struct HaarioTypeAdaptation{T,TF} <: Adaptation
+    mean::Vector{T}
+    cov::Matrix{T}
+    adapt_every_k_steps::Int64
+    scale::Float64
+    N::Int64
+    M::Int64
+    fλ::TF
 
+    function HaarioTypeAdaptation(
+            state::Vector{T};
+            adapt_every_k_steps=100,
+            scale = 2.38^2,
+            f::TF=((x,y,z)->x),
+        ) where {T,TF}
+        new{T,TF}(
+            zero(state),
+            zeros(T, (length(state), length(state))),
+            adapt_every_k_steps,
+            scale,
+            1,
+            0,
+            f
+        )
+    end
+end
+
+register_only_on_my_turn(::Val{false}, ::HaarioTypeAdaptation) = false
+
+function register_only_on_my_turn(::Val{true}, updt::HaarioTypeAdaptation)
+    updt.M += 1 # register an update on my turn
+    false
+end
+
+function register!(updt, adpt::HaarioTypeAdaptation, ::Any, θ)
+    remove_constraints!(updt.rw.gsn_A, θ)
+    old_sum_sq = (adpt.N-1)/adpt.N * adpt.cov + adpt.mean * adpt.mean'
+    adpt.mean .= adpt.mean .* (adpt.N/(adpt.N+1)) .+ θ ./ (adpt.N+1)
+    new_sum_sq = old_sum_sq + (θ * θ')/adpt.N
+    adpt.cov .= new_sum_sq - (adpt.N+1)/adpt.N*(adpt.mean * adpt.mean')
+    reimpose_constraints!(updt.rw.gsn_A, θ)
+    adpt.N += 1
+end
+
+function time_to_update(::Val{true}, adpt::HaarioTypeAdaptation)
+    ttu = (adpt.M >= adpt.adapt_every_k_steps)
+    ttu && (adpt.M = 0) # reset the counter
+    ttu
+end
+
+function readjust!(rw::GaussianRandomWalkMix, adpt::HaarioTypeAdaptation, mcmc_iter)
+    Σ = 2.38^2/length(rw)*adpt.cov
+    rw.gsn_B.Σ = Symmetric(Σ)
+    rw.λ = adpt.fλ(rw.λ, adpt.N, mcmc_iter)
 end

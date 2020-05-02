@@ -27,8 +27,8 @@ module ExtensibleMCMC
     include(joinpath(_DIR, "gsn_target.jl"))
 
     export MCMC
-    export UniformRandomWalk
-    export AdaptationUnifRW
+    export UniformRandomWalk, GaussianRandomWalk, GaussianRandomWalkMix
+    export AdaptationUnifRW, HaarioTypeAdaptation
     export RandomWalkUpdate
     export GenericMCMCBackend
     export GenericChainStats

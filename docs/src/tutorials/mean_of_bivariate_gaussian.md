@@ -101,9 +101,12 @@ function plot_results(ws)
 end
 plot_results(workspace)
 ```
+
+![simple_unif_rw](../assets/tutorials/mean_of_bivariate_gsn/simple_unif_rw.png)
+
 It turns out we did!
 
-## [Mis-specification of hyper-parameters and adaptation](@id tutorial_mean_of_bivariate_gsn_adpt)
+## [Mis-specification of hyper-parameters and adaptation](@id mean_of_bivariate_gsn_adpt)
 One of the reasons why we did relatively well in recovering the posterior over the mean parameter was because our proposals were quite decent. However, finding good proposals is a delicate issue. For the uniform random walker this translates to finding a good value for the half-range of steps `ϵ`. What happens if we set it to too small?
 ```julia
 mcmc_params = (
@@ -121,6 +124,9 @@ mcmc_params = (
 workspace, local_wss = run!(mcmc_params...)
 plot_results(workspace)
 ```
+
+![simple_unif_rw_too_small_epsilon](../assets/tutorials/mean_of_bivariate_gsn/simple_unif_rw_too_small_epsilon.png)
+
 Well, we can see that we are much much slower in exploring the posterior. Finding ϵ by hand might be problematic and to this end there are standard adaptation techniques that target fixed acceptance rate of the sampler by adjusting the ϵ parameter. We can turn such adaptive schemes on using ExtensibleMCMC and then no matter that we start from a mis-specified ϵ, after some burn-in we should find much better candidates for it.
 ```julia
 mcmc_params = (
@@ -154,3 +160,115 @@ mcmc_params = (
 workspace, local_wss = run!(mcmc_params...)
 plot_results(workspace)
 ```
+
+![simple_unif_rw_adpt](../assets/tutorials/mean_of_bivariate_gsn/simple_unif_rw_adpt.png)
+
+# Gaussian random walk proposals with single-site updates
+Sampling from the uniforms may be easily substituted with sampling from Gaussians as the following example demonstrates
+
+```julia
+mcmc_params = (
+    mcmc = MCMC(
+        [
+            RandomWalkUpdate(
+                GaussianRandomWalk([1.0]), [1];
+                prior=ImproperPrior(),
+            ),
+            RandomWalkUpdate(
+                GaussianRandomWalk([1.0]), [2];
+                prior=ImproperPrior(),
+            ),
+        ]
+    ),
+    num_mcmc_steps = Integer(1e3),
+    data = data,
+    θinit = [0.0, 0.0],
+)
+
+workspace, local_wss = run!(mcmc_params...)
+plot_results(workspace)
+```
+
+![simple_gsn_rw](../assets/tutorials/mean_of_bivariate_gsn/simple_gsn_rw.png)
+
+# Bivariate random walk proposals
+Naturally, it might be desirable to substitute single-site updates with joint updates. This is again very easily implementable:
+
+```julia
+using LinearAlgebra
+mcmc_params = (
+    mcmc = MCMC(
+        [
+            RandomWalkUpdate(
+                GaussianRandomWalk(0.5*Diagonal{Float64}(I, 2)), [1,2];
+                prior=ImproperPrior(),
+            ),
+        ]
+    ),
+    num_mcmc_steps = Integer(1e3),
+    data = data,
+    θinit = [0.0, 0.0],
+)
+
+workspace, local_wss = run!(mcmc_params...)
+plot_results(workspace)
+```
+
+![biv_gsn_rw](../assets/tutorials/mean_of_bivariate_gsn/biv_gsn_rw.png)
+
+Of course, the higher the dimension of proposals the more difficult it becomes to find a suitable covariance matrix for the proposals. For instance, this is what happens if the covariance is not scaled suitably:
+
+```julia
+using LinearAlgebra
+mcmc_params = (
+    mcmc = MCMC(
+        [
+            RandomWalkUpdate(
+                GaussianRandomWalk(0.001*Diagonal{Float64}(I, 2)), [1,2];
+                prior=ImproperPrior(),
+            ),
+        ]
+    ),
+    num_mcmc_steps = Integer(1e3),
+    data = data,
+    θinit = [0.0, 0.0],
+)
+
+workspace, local_wss = run!(mcmc_params...)
+plot_results(workspace)
+```
+
+![biv_gsn_rw_too_small](../assets/tutorials/mean_of_bivariate_gsn/biv_gsn_rw_too_small.png)
+
+# Haario-type adaptation for multivariate Gaussian random walk proposals
+We may however employ Haario-type adaptive schemes very easily to learn the covariance in an adaptive way.
+
+```julia
+mcmc_params = (
+    mcmc = MCMC(
+        [
+            RandomWalkUpdate(
+                GaussianRandomWalkMix(
+                    0.01*Diagonal{Float64}(I, 2),
+                    0.01*Diagonal{Float64}(I, 2)
+                ),
+                [1,2];
+                prior=ImproperPrior(),
+                adpt=HaarioTypeAdaptation(
+                    rand(2);
+                    adapt_every_k_steps=50,
+                    f=((x,y,z)->(0.01+1/y^(1/3))),
+                ),
+            ),
+        ]
+    ),
+    num_mcmc_steps = Integer(1e3),
+    data = data,
+    θinit = [0.0, 0.0],
+)
+
+workspace, local_wss = run!(mcmc_params...)
+plot_results(workspace)
+```
+
+![biv_gsn_rw_adpt](../assets/tutorials/mean_of_bivariate_gsn/biv_gsn_rw_adpt.png)
