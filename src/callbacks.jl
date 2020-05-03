@@ -4,9 +4,7 @@
     MCMC updates. The following callbacks are implemented here:
         ✔   Saving callback: saves the history of the updated chain as a
             CSV file.
-        ✗   Plotting callback: for online plotting of the Markov chains,
-            acceptance rates, sampled paths etc. as they are evolving.
-        ✗   REPL feedback callback: for printing progress messages to REPL.
+        ✔   REPL feedback callback: for printing progress messages to REPL.
 
 ===============================================================================#
 
@@ -22,28 +20,28 @@ abstract type Callback end
 #NOTE by default nothing to be done, but for instance a plotting callback will
 # need to set up the canvas
 """
-    init!(::Callback)
+    init!(::Callback, ws::GlobalWorkspace)
 
 Initialization actions for a callback. By default nothing to be done.
 """
 function init!(::Callback, ws::GlobalWorkspace) end
 
-function init!(vec_of_callbacks::Vector{<:Callback}, ws::GlobalWorkspace)
-    for v in vec_of_callbacks
-        init!(v, ws)
+function init!(callbacks::Vector{<:Callback}, ws::GlobalWorkspace)
+    for c in callbacks
+        init!(c, ws)
     end
 end
 
-function update!(
+function update_callbacks!(
         callbacks::Vector{<:Callback},
         global_ws::GlobalWorkspace,
-        ws::LocalWorkspace,
+        local_wss::Vector{<:LocalWorkspace},
         step,
         flag,
     )
     for callback in callbacks
         check_if_execute(callback, step, flag) && execute!(
-            callback, global_ws, ws, step, flag
+            callback, global_ws, local_wss, step, flag
         )
     end
 end
@@ -62,17 +60,19 @@ check_if_execute(callback::Callback, step, flag) = false
     execute!(
         callback::Callback,
         global_ws::GlobalWorkspace,
-        local_ws::LocalWorkspace,
+        local_wss,
         step,
         flag
     )
 
-Execute the `callback`.
+Perform actions as specified by the `callback`. `local_wss` is a vector of all
+local workspaces, `step` is an iterator from the `MCMCSchedule` and `flag` is
+either `::PreMCMCStep` or `::PostMCMCStep`.
 """
 function execute!(
         callback::Callback,
         global_ws::GlobalWorkspace,
-        local_ws::LocalWorkspace,
+        local_wss,
         step,
         flag
     )
@@ -82,7 +82,7 @@ end
     cleanup!(callback::Callback, ws::GlobalWorkspace, step)
 
 The last call to callback, after all MCMC steps and before exiting the function
-`run`.
+`run!`.
 """
 function cleanup!(callback::Callback, ws::GlobalWorkspace, step) end
 
@@ -98,26 +98,26 @@ function cleanup!(callback::Callback, ws::GlobalWorkspace, step) end
         filename::String
     end
 
-Struct for saving the intermediate or final states of the sampled chain to the
-disk.
+Struct for saving the intermediate or final states of the sampled chain to a
+hard drive.
 
-        SavingCallback(;
-            save_at_the_end=true,
-            save_at_iters=[],
-            overwrite]=false,
-            filename="mcmc_results",
-            add_datestamp=false,
-            path=".",
-        )
+    SavingCallback(;
+        save_at_the_end=true,
+        save_at_iters=[],
+        overwrite_at_save=false,
+        filename="mcmc_results",
+        add_datestamp=false,
+        path=".",
+    )
 
-    The main constructor for `SavingCallback`. `save_at_the_end` is an indicator
-    flag for whether to save to a file at the end of mcmc sampling,
-    `save_at_iters` additionally specifies at which intermediate iterations
-    the chain should be saved to a file, `overwrite` if set to true will
-    overwrite any already existing file that shares the name with the one passed
-    to this function. `filename` is the main stem of the file's name,
-    `add_datestamps` will add the date and time at the time of creating the
-    callback to the filename and `path` specifies the directory path to save to.
+The main constructor for `SavingCallback`. `save_at_the_end` indicates
+whether to save to a file at the end of mcmc sampling, `save_at_iters`
+specifies at which additional intermediate iterations the chain should be
+saved to a file, set `overwrite` to true to overwrite any already existing
+file that shares the name with the one passed to this function. `filename`
+is the main stem of the file's name, `add_datestamps` will add the date and
+time at the time of creating the callback to the filename and `path`
+specifies the directory path to save to.
 """
 struct SavingCallback <: Callback
     save_at_the_end::Bool
@@ -133,18 +133,28 @@ struct SavingCallback <: Callback
             add_datestamp=false,
             path=".",
         )
-        timestamp = ( add_datestamp ? String("_", DateTime(Dates.now())) : "" )
-        filename = String(filename, timestamp)
+        timestamp = (
+            add_datestamp ?
+            string(
+                "_",
+                Dates.format(
+                    Dates.now(),
+                    "yyyy-mm-dd_HH:MM:SS"
+                )
+            ) :
+            ""
+        )
+        filename = string(filename, timestamp)
         full_filename = (
-            !overwrite ?
+            !overwrite_at_save ?
             find_available_name(path, filename, "") :
-            joinpath(path, String( filename, ".csv" ))
+            joinpath(path, string( filename, ".csv" ))
         )
 
         new(
             save_at_the_end,
             length(save_at_iters)>0,
-            save_at_iters,
+            collect(save_at_iters),
             full_filename,
         )
     end
@@ -158,8 +168,8 @@ consecutive numbers to the end of the file until the first one that is not used
 yet is found.
 """
 function find_available_name(path, filename, disambig_num, extension=".csv")
-    proposal_name = joinpath(path, String( filename, disambig_num, extension ))
-    next_num = disambig_num == "" ? "1" : String(parse(Int64, disambig_num) + 1)
+    proposal_name = joinpath(path, string( filename, disambig_num, extension ))
+    next_num = disambig_num == "" ? "1" : string(parse(Int64, disambig_num) + 1)
     isfile(proposal_name) && (
         return find_available_name(path, filename, next_num, extension)
     )
@@ -172,7 +182,9 @@ end
 
 Create a CSV file for writing into.
 """
-init!(callback::SavingCallback, ws::GlobalWorkspace) = (open(callback.filename, "w") do _ end)
+function init!(callback::SavingCallback, ws::GlobalWorkspace)
+    open(callback.filename, "w") do _ end
+end
 
 """
     check_if_execute(callback::SavingCallback, iter)
@@ -180,9 +192,9 @@ init!(callback::SavingCallback, ws::GlobalWorkspace) = (open(callback.filename, 
 Return `true` if the mcmc iteration `iter` is one at which an intermediate save
 is to be made.
 """
-function check_if_execute(callback::SavingCallback, step, flag)
+function check_if_execute(callback::SavingCallback, step, ::PreMCMCStep)
     !callback.save_intermediate && return false
-    iter in callback.save_at_iters && return true
+    step.mcmciter in callback.save_at_iters && step.pidx == 1 && return true
     false
 end
 
@@ -191,8 +203,8 @@ end
 
 Save the entire MCMC chain, history of proposals, acceptance history etc.
 """
-function cleanup!(callback::SavingCallback, ws::GlobalWorkspace, step)
-    callback.save_at_the_end && execute!(callback, ws, iter)
+function cleanup!(callback::SavingCallback, ws::GlobalWorkspace, local_wss, step)
+    callback.save_at_the_end && execute!(callback, ws, local_wss, step, nothing)
 end
 
 
@@ -202,11 +214,11 @@ end
 Save the chain of accepted states, proposed states and acceptance history to
 the disk.
 """
-function execute!(sc::SavingCallback, ws::GlobalWorkspace, lws::LocalWorkspace, step, flag)
-    iter_start = find_starting_idx(sc, iter)
+function execute!(sc::SavingCallback, ws::GlobalWorkspace, local_wss, step, ::Any)
+    iter_start = find_starting_idx(sc, step)
     open(sc.filename, "a") do f
-        for i in iter_start:(iter-1)
-            data_to_csv(f, ws, i)
+        for i in iter_start:(step.mcmciter-1)
+            data_to_csv(f, ws, local_wss, i)
         end
     end
 end
@@ -216,9 +228,10 @@ end
 
 Find the last index for which saving was done.
 """
-function find_starting_idx(callback::SavingCallback, iter)
+function find_starting_idx(callback::SavingCallback, step)
     !callback.save_intermediate && return 1
-    iter_idx = first(searchsorted(callback.save_at_iters, iter))
+    iter_idx = first(searchsorted(callback.save_at_iters, step.mcmciter))
+    iter_idx == 1 && return 1
     callback.save_at_iters[iter_idx-1]
 end
 
@@ -227,13 +240,15 @@ end
 
 Write data entries to a CSV file.
 """
-function data_to_csv(f, ws::GlobalWorkspace, i)
-    for j in 1:length(ws.state_history[i])
+function data_to_csv(f, ws::GlobalWorkspace, local_wss, i)
+    for j in 1:length(ws.sub_ws.state_history[i])
         idx = "$i, $j, "
-        θ = join(["$θₖ, " for θₖ in ws.state_history[i][j]])
-        θ° = join(["$θₖ, " for θₖ in ws.state_proposal_history[i][j]])
-        a_r = acceptance_history[i][j] ? 1 : 0
-        write(f, String(idx, θ, θ°, a_r, "\n"))
+        θ = join(["$θₖ, " for θₖ in ws.sub_ws.state_history[i][j]])
+        θ° = join(["$θₖ, " for θₖ in ws.sub_ws.state_proposal_history[i][j]])
+        ll = join(["$ll, " for ll in local_wss[j].sub_ws.ll_history[i]])
+        ll° = join(["$ll, " for ll in local_wss[j].sub_ws°.ll_history[i]])
+        a_r = join(["$a_r, " for a_r in local_wss[j].acceptance_history[i]])
+        write(f, string(idx, "!, ", θ, "!, ", θ°, "!, ", ll, "!, ", ll°, "!,", a_r, "\n"))
     end
 end
 
@@ -241,6 +256,67 @@ end
 #===============================================================================
                         REPL progress printing callback
 ===============================================================================#
-struct ProgressPrintCallback <: Callback
+"""
+    struct REPLCallback <: Callback
+        print_every_k_iter::Int64
+        show_all_updates::Bool
+        basic_info_only::Bool
+    end
 
+Struct with instructions for printing progress messages to REPL.
+
+    REPLCallback(;
+        print_every_k_iter=100,
+        show_all_upates=true,
+        basic_info_only=true,
+    )
+
+Base constructor that uses named arguments.
+"""
+struct REPLCallback <: Callback
+    print_every_k_iter::Int64
+    show_all_updates::Bool
+    basic_info_only::Bool
+
+    function REPLCallback(;
+            print_every_k_iter=100,
+            show_all_upates=true,
+            basic_info_only=true,
+        )
+        new(print_every_k_iter, show_all_upates, basic_info_only)
+    end
+end
+
+function init!(callback::REPLCallback, ws::GlobalWorkspace)
+    println(join(fill("*", 40)))
+    println("Initializing an MCMC chain")
+    summary(ws; init=true)
+    println("* * *")
+end
+
+function check_if_execute(callback::REPLCallback, step, ::PostMCMCStep)
+    (step.mcmciter % callback.print_every_k_iter == 0) || return false
+    (callback.show_all_updates || step.pidx == 1) && return true
+    false
+end
+
+function execute!(rc::REPLCallback, ws::GlobalWorkspace, local_wss, step, ::Any)
+    lws, M = local_wss[step.pidx], step.mcmciter
+    println("- - - - - - - - - - -")
+    println(M, ".", step.pidx, " ", name_of_update(lws))
+    _λ(x) = (length(x)==1 ? x[1] : x)
+    _ll = map(x->round.(_λ(x(lws, M)), sigdigits=4), [ll, ll°, llr])
+    a_r = accepted(lws, M) ? "✔" : "✗"
+    println("\tll: $(_ll[1]), ll°: $(_ll[2]), llr: $(_ll[3]), a/r: $a_r")
+    rc.basic_info_only || begin
+        θs = map(x->round.(x(lws); sigdigits=4), [state, state°])
+        println("\t\tθ : $(θs[1])")
+        println("\t $a_r  θ°: $(θs[2])")
+    end
+end
+
+function cleanup!(callback::REPLCallback, ws::GlobalWorkspace, local_wss, step)
+    println("\n\nMCMC sampling has been successful!")
+    println("Doing some clean-up and finishing...")
+    println("\n⋆ ⋆ ⋆\n")
 end

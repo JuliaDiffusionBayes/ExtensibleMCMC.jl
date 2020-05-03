@@ -13,18 +13,18 @@ module ExtensibleMCMC
     include("utility_functions.jl") # ✔
     include("priors.jl")
     include("schedule.jl") # ✔
-    include("chain_statistics.jl")
+    include("chain_statistics.jl") # ✔
     _DIR = "transition_kernels"
-    include(joinpath(_DIR, "random_walk.jl")) # ✔/✗ (TODO add a Gaussian random walk and a mixture of two Gaussian random walks, should be simple adaptation of stuff in BridgeSDEInference.jl)
-    include(joinpath(_DIR, "adaptation.jl")) # ✔/✗ (TODO add a Haario-type adaptive scheme (and others, see the file for info))
+    include(joinpath(_DIR, "random_walk.jl")) # ✔
+    include(joinpath(_DIR, "adaptation.jl")) # ✔
 
-    include("callbacks.jl") # ✔/✗ (TODO coordinate with DiffusionVis.jl to implement a plotting callback)
+    include("callbacks.jl") # ✔
     include("mcmc.jl") # ✔
     include("run.jl") # ✔
-    include("updates.jl") # ✗ (TODO implement conjugate updates, MALA, Hamiltionan Monte Carlo, and much more, this might have do be done after DiffusionMCMC.jl)
-    include("workspaces.jl")
+    include("updates.jl") # ✔/✗ (TODO implement conjugate updates, MALA, Hamiltionan Monte Carlo, and much more, this might have do be done after DiffusionMCMC.jl)
+    include("workspaces.jl") # ✔
     _DIR = "example"
-    include(joinpath(_DIR, "gsn_target.jl"))
+    include(joinpath(_DIR, "gsn_target.jl")) # ✔
 
     export MCMC
     export UniformRandomWalk, GaussianRandomWalk, GaussianRandomWalkMix
@@ -36,4 +36,5 @@ module ExtensibleMCMC
     export run!
     export get_decorators, isdecorator
     export ImproperPosPrior, ImproperPrior
+    export SavingCallback, REPLCallback
 end # module

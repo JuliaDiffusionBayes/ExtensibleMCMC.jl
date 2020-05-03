@@ -256,10 +256,6 @@ function accept_reject!(
         + log_prior(__PROPOSAL, updt, ws)
         - log_prior(__PREVIOUS, updt, ws)
     )
-    # move printouts to callbacks
-    j = step.mcmciter
-    j % 100 == 0 && println("iter: $j, ll: $ll, ll°: $(ll°), llr: $llr")
-
     accepted = rand(Exponential(1.0)) > -llr
     register_accept_reject_results!(accepted, updt, global_ws, ws, step, i)
 end

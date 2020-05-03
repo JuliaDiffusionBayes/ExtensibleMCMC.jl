@@ -33,7 +33,7 @@ The uniform random walker depends on the hyper-parameter $$ϵ$$, which has a lar
 ```@docs
 ExtensibleMCMC.AdaptationUnifRW
 ```
-To see a simple example of a difference that adaptation can make see the [Tutorial on estimating the mean of a simple bivariate Gaussian](@ref tutorial_mean_of_bivariate_gsn_adpt)
+To see a simple example of a difference that adaptation can make see the [Tutorial on estimating the mean of a simple bivariate Gaussian](@ref tutorial_mean_of_bivariate_gsn)
 
 ### Gaussian Random Walker
 Another implemented type of random walker is a Gaussian random walker.

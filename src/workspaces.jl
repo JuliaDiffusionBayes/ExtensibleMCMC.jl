@@ -108,6 +108,33 @@ function init_global_workspace(
     )
 end
 
+num_mcmc_steps(ws::GlobalWorkspace) = length(ws.sub_ws.state_history)
+state(ws::GlobalWorkspace) = ws.sub_ws.state
+num_updt(ws::GlobalWorkspace) = length(first(ws.sub_ws.state_history))
+estim_mean(ws::GlobalWorkspace) = ws.sub_ws.stats.mean
+estim_cov(ws::GlobalWorkspace) = ws.sub_ws.stats.cov
+
+function Base.summary(ws::GlobalWorkspace; init=false)
+    summary(Base.stdout, ws, Val(init))
+end
+
+Base.summary(io::IO, ws::GlobalWorkspace; init=false) = summary(io, ws, Val(init))
+
+function Base.summary(io::IO, ws::GlobalWorkspace, ::Val{true})
+    println(io, "Number of MCMC iterations: ", num_mcmc_steps(ws))
+    println(io, "Initial θ guess: ", state(ws))
+    println(io, "Number of updates at each MCMC iteration: ", num_updt(ws))
+    println(io, "Chosen `GlobalWorkspace:` ", remove_curly(typeof(ws)))
+end
+
+function Base.summary(io::IO, ws::GlobalWorkspace, ::Val{false})
+    println(io, "Number of MCMC iterations: ", num_mcmc_steps(ws))
+    println(io, "Estimated E[θ]: ", estim_mean(ws))
+    println(io, "Estimated Cov[θ]: ")
+    show(io, "text/plain", estim_cov(ws))
+end
+
+
 #                              LOCAL WORKSPACE
 #-------------------------------------------------------------------------------
 """
@@ -167,7 +194,18 @@ struct GenericLocalWorkspace{T} <: LocalWorkspace{T}
     sub_ws::StandardLocalSubworkspace{T}
     sub_ws°::StandardLocalSubworkspace{T}
     acceptance_history::Vector{Bool}
+    updt_name::String
 end
+
+accepted(ws::LocalWorkspace, i) = ws.acceptance_history[i]
+ll(ws::LocalWorkspace, i) = ws.sub_ws.ll_history[i]
+ll°(ws::LocalWorkspace, i) = ws.sub_ws°.ll_history[i]
+ll_prop = ll°
+llr(ws::LocalWorkspace, i) = sum(ll°(ws, i) .- ll(ws, i))
+state(ws::LocalWorkspace) = ws.sub_ws.state
+state°(ws::LocalWorkspace) = ws.sub_ws°.state
+state_prop = state°
+name_of_update(ws::LocalWorkspace) = ws.updt_name
 
 """
     create_workspaces(v::GenericMCMCBackend, mcmc::MCMC)
@@ -207,5 +245,6 @@ function create_workspace(
         StandardLocalSubworkspace(state, num_mcmc_steps),
         StandardLocalSubworkspace(state, num_mcmc_steps),
         Vector{Bool}(undef, num_mcmc_steps),
+        string(remove_curly(typeof(mcmcupdate))),
     )
 end

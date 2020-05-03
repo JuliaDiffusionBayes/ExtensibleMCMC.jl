@@ -127,3 +127,20 @@ struct Previous end
 struct Proposal end
 struct PreMCMCStep end
 struct PostMCMCStep end
+
+#NOTE also appears in DiffusionDefinition.jl, but not used there.
+"""
+    remove_curly(::Type{K}) where K
+
+Utility function that removes all type-specifiers listed in the curly brackets.
+
+# Examples
+```julia-repl
+julia> remove_curly(Array{Float64,1})
+Array
+```
+"""
+@generated function remove_curly(::Type{K}) where K
+    name_without_curly = Meta.parse(string(K)).args[1]
+    :( $name_without_curly )
+end

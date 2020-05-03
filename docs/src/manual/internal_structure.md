@@ -15,7 +15,7 @@ The MCMC object is simply a list of `update`s and a specification of a `backend`
 
 ### Callbacks
 
-Callbacks are instructions that allow for certain interactions with the state of the sampler while it is still working. In `The Algorithm` section of a graph you can see that each callback may be executed before and after any call to an MCMC update. These can be such instructions as:
+Callbacks are instructions that allow for certain interactions with the state of the sampler while the sampler is still working. In `The Algorithm` section of a graph you can see that each callback may be executed before and after any call to an MCMC update. These can be such instructions as:
 - print useful info to the console about the state of the sampler
 - update diagnostic plots
 - save the data to a csv file

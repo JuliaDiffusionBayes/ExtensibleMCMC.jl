@@ -36,7 +36,7 @@ function run!(mcmc::MCMC, num_mcmc_steps, data, θinit, callbacks=Callback[]; kw
     init!(callbacks, mcmc.workspace)
     __run!(mcmc.workspace, local_wss, mcmc.updates, mcmc.schedule, callbacks)
     for callback in callbacks
-        cleanup!(callback, mcmc.workspace, num_mcmc_steps)
+        cleanup!(callback, mcmc.workspace, local_wss, (mcmciter=num_mcmc_steps,))
     end
     mcmc.workspace, local_wss
 end
@@ -63,9 +63,9 @@ function __run!(global_ws, local_wss, updates, schedule, callbacks)
             step,
             (step.prev_pidx===nothing ? nothing : local_wss[step.prev_pidx])
         )
-        update!(callbacks, global_ws, local_ws, step, __PRESTEP)
+        update_callbacks!(callbacks, global_ws, local_wss, step, __PRESTEP)
         update!(local_update, global_ws, local_ws, step)
         update_adaptation!(updates, global_ws, local_ws, step)
-        update!(callbacks, global_ws, local_ws, step, __POSTSTEP)
+        update_callbacks!(callbacks, global_ws, local_wss, step, __POSTSTEP)
     end
 end
