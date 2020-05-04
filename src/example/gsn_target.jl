@@ -12,7 +12,7 @@ mutable struct GsnTargetLaw{T}
     end
 end
 
-function new_parameters!(P::GsnTargetLaw, loc2glob_idx, θ)
+function set_parameters!(P::GsnTargetLaw, loc2glob_idx, θ)
     P.θ[loc2glob_idx] .= θ
     d = dim(P.P.Σ)
     μ, Σ = P.θ[1:d], reshape(P.θ[(d+1):end], (d,d))

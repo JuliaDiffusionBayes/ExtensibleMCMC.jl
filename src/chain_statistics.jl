@@ -39,11 +39,11 @@ end
 
 
 function update_stats!(
-        cs::GenericChainStats,
         global_ws::GlobalWorkspace,
         local_ws::LocalWorkspace,
         step
     )
+    cs = global_ws.sub_ws.stats
     θ = global_ws.sub_ws.state
     old_sum_sq = (cs.N-1)/cs.N * cs.cov + cs.mean * cs.mean'
     cs.mean .= cs.mean .* (cs.N/(cs.N+1)) .+ θ ./ (cs.N+1)

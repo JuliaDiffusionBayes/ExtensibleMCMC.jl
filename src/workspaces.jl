@@ -14,9 +14,131 @@
 
 ===============================================================================#
 
-
 #                              GLOBAL WORKSPACE
 #-------------------------------------------------------------------------------
+
+#=        |-------------------------------------------------------|
+          |    each custom GlobalWorkspace MUST overwrite these:  |
+          |-------------------------------------------------------|           =#
+"""
+    init_global_workspace(
+        ::MCMCBackend,
+        schedule::MCMCSchedule,
+        updates::Vector{<:MCMCUpdate},
+        data,
+        θinit::Vector{T};
+        kwargs...
+    ) where T
+
+Initialize the `<custom>GlobalWorkspace`. `<custom>MCMCBackend` points to which
+`GlobalWorkspace` constructors to use, `updates` is a list of MCMC updates,
+`θinit` is the initial guess for the parameter and `kwargs` are the named
+arguments passed to `run!`.
+"""
+function init_global_workspace(
+        ::MCMCBackend,
+        schedule::MCMCSchedule,
+        updates::Vector{<:MCMCUpdate},
+        data,
+        θinit::Vector{T};
+        kwargs...
+    ) where T
+    error("init_global_workspace not implemented")
+end
+
+"""
+    loglikelihood(ws::GlobalWorkspace, ::Proposal)
+
+Evaluate the loglikelihood for the proposal Law and observations stored in a
+global workspace.
+"""
+function Distributions.loglikelihood(ws::GlobalWorkspace, ::Proposal)
+    error(
+        string(
+            "loglikelihood(ws::GlobalWorkspace, ::Proposal) for a custom ",
+            "GlobalWorkspace is not implemented"
+        )
+    )
+end
+
+"""
+    loglikelihood(ws::GlobalWorkspace, ::Previous)
+
+Evaluate the loglikelihood for the accepted Law and observations stored in a
+global workspace.
+"""
+function Distributions.loglikelihood(ws::GlobalWorkspace, ::Previous)
+    error(
+        string(
+            "loglikelihood(ws::GlobalWorkspace, ::Previous) for a custom ",
+            "GlobalWorkspace is not implemented"
+        )
+    )
+end
+
+
+#=
+        for custom GlobalWorkspaces these methods will work so long as
+        they contain sub_ws::StandardGlobalSubworkspace, otherwise they
+        need to be overwritten.
+                                                                              =#
+
+"""
+    num_mcmc_steps(ws::GlobalWorkspace)
+
+Return the total set number of MCMC iterations.
+"""
+num_mcmc_steps(ws::GlobalWorkspace) = num_mcmc_steps(ws.sub_ws)
+
+"""
+    state(ws::GlobalWorkspace)
+
+Return currently accepted state of the chain.
+"""
+state(ws::GlobalWorkspace) = state(ws.sub_ws)
+
+"""
+    state(ws::GlobalWorkspace, step)
+
+Return the state of the chain accepted at the the `step` iteration of the Markov
+chain.
+"""
+state(ws::GlobalWorkspace, step) = state(ws.sub_ws, step)
+
+"""
+    state°(ws::GlobalWorkspace, step)
+
+Return the state of the chain proposed at the the `step` iteration of the Markov
+chain.
+"""
+state°(ws::GlobalWorkspace, step) = state°(ws.sub_ws, step)
+
+"""
+    num_updt(ws::GlobalWorkspace)
+
+Return the total set number of MCMC updates that may be performed at each MCMC
+iteration.
+"""
+num_updt(ws::GlobalWorkspace) = num_updt(ws.sub_ws)
+
+"""
+    estim_mean(ws::GlobalWorkspace)
+
+Return the empirical mean of the parameter.
+"""
+estim_mean(ws::GlobalWorkspace) = estim_mean(ws.sub_ws)
+
+"""
+    estim_cov(ws::GlobalWorkspace)
+
+Return the empirical covariance of the parameter.
+"""
+estim_cov(ws::GlobalWorkspace) = estim_cov(ws.sub_ws)
+
+#=
+                            standard sub-Workspace
+                                                                              =#
+
 """
     struct StandardGlobalSubworkspace{T,TD} <: GlobalWorkspace{T}
         state::Vector{T}
@@ -57,10 +179,25 @@ struct StandardGlobalSubworkspace{T,TD} <: GlobalWorkspace{T}
     end
 end
 
+num_mcmc_steps(ws::StandardGlobalSubworkspace) = length(ws.state_history)
+state(ws::StandardGlobalSubworkspace) = ws.state
+function state(ws::StandardGlobalSubworkspace, step)
+    ws.state_history[step.mcmciter][step.pidx]
+end
+function state°(ws::StandardGlobalSubworkspace, step)
+    ws.state_proposal_history[step.mcmciter][step.pidx]
+end
+num_updt(ws::StandardGlobalSubworkspace) = length(first(ws.state_history))
+estim_mean(ws::StandardGlobalSubworkspace) = ws.stats.mean
+estim_cov(ws::StandardGlobalSubworkspace) = ws.stats.cov
+
+#=
+                        simple, custom GlobalWorkspace
+                                                                              =#
+
 """
-    struct GenericGlobalWorkspace{T,SW,TL} <: GlobalWorkspace{T}
-        sub_ws::SW
-        ll::Vector{Float64}
+    struct GenericGlobalWorkspace{T,TD,TL} <: GlobalWorkspace{T}
+        sub_ws::StandardGlobalSubworkspace{T,TD}
         P::TL
         P°::TL
     end
@@ -69,24 +206,12 @@ Generic global workspace with `sub_ws` containing current `state` and keeping
 track of its history and some basic statistics. `P` and `P°` are the target laws
 with accepted and proposal `state` set as parameters.
 """
-struct GenericGlobalWorkspace{T,SW,TL} <: GlobalWorkspace{T}
-    sub_ws::SW
+struct GenericGlobalWorkspace{T,TD,TL} <: GlobalWorkspace{T}
+    sub_ws::StandardGlobalSubworkspace{T,TD}
     P::TL
     P°::TL
 end
 
-"""
-    init_global_workspace(
-        ::GenericMCMCBackend,
-        schedule::MCMCSchedule,
-        updates::Vector{<:MCMCUpdate},
-        data,
-        θinit::Vector{T};
-        kwargs...
-    ) where T
-
-Initialize the `GenericGlobalWorkspace`.
-"""
 function init_global_workspace(
         ::GenericMCMCBackend,
         schedule::MCMCSchedule,
@@ -101,18 +226,20 @@ function init_global_workspace(
         data,
         θinit,
     )
-    GenericGlobalWorkspace{T,typeof(sub_ws),typeof(data.P)}(
+    GenericGlobalWorkspace{T,typeof(data),typeof(data.P)}(
         sub_ws,
         deepcopy(data.P),
         deepcopy(data.P),
     )
 end
 
-num_mcmc_steps(ws::GlobalWorkspace) = length(ws.sub_ws.state_history)
-state(ws::GlobalWorkspace) = ws.sub_ws.state
-num_updt(ws::GlobalWorkspace) = length(first(ws.sub_ws.state_history))
-estim_mean(ws::GlobalWorkspace) = ws.sub_ws.stats.mean
-estim_cov(ws::GlobalWorkspace) = ws.sub_ws.stats.cov
+function Distributions.loglikelihood(ws::GenericGlobalWorkspace, ::Proposal)
+    loglikelihood(ws.P°, ws.sub_ws.data.obs)
+end
+
+#=
+                generic methods for all GlobalWorkspaces
+                                                                              =#
 
 function Base.summary(ws::GlobalWorkspace; init=false)
     summary(Base.stdout, ws, Val(init))
@@ -134,9 +261,137 @@ function Base.summary(io::IO, ws::GlobalWorkspace, ::Val{false})
     show(io, "text/plain", estim_cov(ws))
 end
 
-
 #                              LOCAL WORKSPACE
 #-------------------------------------------------------------------------------
+
+#=
+        for custom LocalWorkspaces these methods MUST be overwritten:
+                                                                              =#
+"""
+    create_workspace(
+        ::MCMCBackend,
+        mcmcupdate,
+        global_ws::GlobalWorkspace,
+        num_mcmc_steps
+    ) where {T}
+
+Create a local workspace for a given `mcmcupdate`.
+"""
+function create_workspace(
+        ::MCMCBackend,
+        mcmcupdate,
+        global_ws::GlobalWorkspace,
+        num_mcmc_steps
+    ) where {T}
+    error("create_workspace (localworkspace) is not defined.")
+end
+
+"""
+    accepted(ws::LocalWorkspace, i::Int)
+
+Return boolean for whether the ith update has been accepted.
+"""
+function accepted(ws::LocalWorkspace, i::Int)
+    error("accepted(ws::LocalWorkspace, i) is not implemented")
+end
+
+"""
+    set_accepted!(ws::LocalWorkspace, i::Int, v)
+
+Set boolean for whether the ith update has been accepted.
+"""
+function set_accepted!(ws::LocalWorkspace, i::Int, v)
+    error("set_accepted!(ws::LocalWorkspace, i) is not implemented")
+end
+
+#=
+        for custom LocalWorkspaces these methods will work so long as
+        they contain sub_ws::StandardGlobalSubworkspace and
+        sub_ws°::StandardGlobalSubworkspace, otherwise they need to be
+        overwritten.
+                                                                              =#
+"""
+    ll(ws::LocalWorkspace)
+
+Return log-likelihood of the currently accepted parameter.
+"""
+ll(ws::LocalWorkspace) = ll(ws.sub_ws)
+
+"""
+    ll°(ws::LocalWorkspace)
+
+Return log-likelihood of the currently proposed parameter.
+"""
+ll°(ws::LocalWorkspace) = ll(ws.sub_ws°)
+
+"""
+    ll(ws::LocalWorkspace, i::Int)
+
+Return log-likelihood of the ith accepted parameter.
+"""
+ll(ws::LocalWorkspace, i::Int) = ll(ws.sub_ws, i)
+
+"""
+    ll°(ws::LocalWorkspace, i::Int)
+
+Return log-likelihood of the ith proposed parameter.
+"""
+ll°(ws::LocalWorkspace, i::Int) = ll(ws.sub_ws°)
+
+"""
+    state(ws::LocalWorkspace)
+
+Return the last accepted state.
+"""
+state(ws::LocalWorkspace) = state(ws.sub_ws)
+
+"""
+    state°(ws::LocalWorkspace)
+
+Return the last proposed state.
+"""
+state°(ws::LocalWorkspace) = state(ws.sub_ws°)
+
+#=
+        for custom LocalWorkspaces these are well defined, but may
+        not make sense:
+                                                                              =#
+"""
+    create_workspaces(v::MCMCBackend, mcmc::MCMC)
+
+Create local workspaces, one for each update.
+"""
+function create_workspaces(backend::MCMCBackend, mcmc::MCMC)
+    [
+        create_workspace(
+            backend,
+            mcmc.updates[i],
+            mcmc.workspace,
+            mcmc.schedule.num_mcmc_steps
+        ) for i in 1:mcmc.schedule.num_updates
+    ]
+end
+
+"""
+    llr(ws::LocalWorkspace, i::Int)
+
+Compute log-likelihood ratio at ith mcmc iteration.
+"""
+llr(ws::LocalWorkspace, i::Int) = sum(ll°(ws, i) .- ll(ws, i))
+
+"""
+    name_of_update(ws::LocalWorkspace)
+
+Return the name of the update.
+"""
+name_of_update(ws::LocalWorkspace) = "unknown name"
+
+
+
+#=
+                        standard local sub-Workspace
+                                                                              =#
+
 """
     struct StandardLocalSubworkspace{T} <: LocalWorkspace{T}
         state::Vector{T}
@@ -152,10 +407,10 @@ operates on, `ll` is the corresponding log-likelihood and `ll_history` is the
 chain of log-likelihoods. A single `ll` is of the type `Vector{Float64}` to
 reflect the fact that a problem might admit a natural factorisation into
 independent components that may be operated on independently, in parallel with
-each entry in `ll` corresponding to a separate subcomponent. `∇ll` is the
-gradient of log-likelihood (needed by gradient-based algorithms) and `momentum`
-is the variable needed for the Hamiltionan dynamics. `∇ll` and `momentum` may be
-simply left untouched if the problem does not need them.
+each entry in `ll` corresponding to a separate component. `∇ll` is the gradient
+of log-likelihood (needed by gradient-based algorithms) and `momentum` is the
+variable needed for the Hamiltionan dynamics. `∇ll` and `momentum` may be simply
+left untouched if the problem does not need them.
 """
 struct StandardLocalSubworkspace{T} <: LocalWorkspace{T}
     state::Vector{T}
@@ -177,6 +432,13 @@ struct StandardLocalSubworkspace{T} <: LocalWorkspace{T}
     end
 end
 
+ll(ws::StandardLocalSubworkspace) = ws.ll
+ll(ws::StandardLocalSubworkspace, i::Int) = ws.ll_history[i]
+state(ws::StandardLocalSubworkspace) = ws.state
+
+#=
+                        simple, custom LocalWorkspace
+                                                                              =#
 
 """
     struct GenericLocalWorkspace{T} <: LocalWorkspace{T}
@@ -197,54 +459,21 @@ struct GenericLocalWorkspace{T} <: LocalWorkspace{T}
     updt_name::String
 end
 
-accepted(ws::LocalWorkspace, i) = ws.acceptance_history[i]
-ll(ws::LocalWorkspace, i) = ws.sub_ws.ll_history[i]
-ll°(ws::LocalWorkspace, i) = ws.sub_ws°.ll_history[i]
-ll_prop = ll°
-llr(ws::LocalWorkspace, i) = sum(ll°(ws, i) .- ll(ws, i))
-state(ws::LocalWorkspace) = ws.sub_ws.state
-state°(ws::LocalWorkspace) = ws.sub_ws°.state
-state_prop = state°
-name_of_update(ws::LocalWorkspace) = ws.updt_name
-
-"""
-    create_workspaces(v::GenericMCMCBackend, mcmc::MCMC)
-
-Create local workspaces, one for each update.
-"""
-function create_workspaces(v::GenericMCMCBackend, mcmc::MCMC)
-    [
-        create_workspace(
-            v,
-            mcmc.updates[i],
-            mcmc.workspace,
-            mcmc.schedule.num_mcmc_steps
-        ) for i in 1:mcmc.schedule.num_updates
-    ]
-end
-
-
-"""
-    create_workspace(
-        ::GenericMCMCBackend,
-        mcmcupdate,
-        global_ws::GenericGlobalWorkspace{T},
-        num_mcmc_steps
-    ) where {T}
-
-Create a local workspace for a given `mcmcupdate`.
-"""
 function create_workspace(
         ::GenericMCMCBackend,
         mcmcupdate,
         global_ws::GenericGlobalWorkspace{T},
         num_mcmc_steps
     ) where {T}
-    state = global_ws.sub_ws.state[mcmcupdate.loc2glob_idx]
+    _state = state(global_ws, mcmcupdate)[:]
     GenericLocalWorkspace{T}(
-        StandardLocalSubworkspace(state, num_mcmc_steps),
-        StandardLocalSubworkspace(state, num_mcmc_steps),
+        StandardLocalSubworkspace(_state, num_mcmc_steps),
+        StandardLocalSubworkspace(_state, num_mcmc_steps),
         Vector{Bool}(undef, num_mcmc_steps),
         string(remove_curly(typeof(mcmcupdate))),
     )
 end
+
+accepted(ws::GenericLocalWorkspace, i::Int) = ws.acceptance_history[i]
+set_accepted!(ws::GenericLocalWorkspace, i::Int, v) = (ws.acceptance_history[i] = v)
+name_of_update(ws::GenericLocalWorkspace) = ws.updt_name

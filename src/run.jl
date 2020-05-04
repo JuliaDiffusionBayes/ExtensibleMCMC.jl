@@ -69,3 +69,278 @@ function __run!(global_ws, local_wss, updates, schedule, callbacks)
         update_callbacks!(callbacks, global_ws, local_wss, step, __POSTSTEP)
     end
 end
+
+
+#            RELATED TO TRANSFER OF INFORMATION BETWEEN WORKSPACES
+#-------------------------------------------------------------------------------
+
+"""
+    update_workspaces!(
+        local_updt::MCMCParamUpdate,
+        global_ws::GlobalWorkspace,
+        local_ws::LocalWorkspace,
+        step,
+        prev_ws,
+    )
+Transfer all the information that is needed at the time of starting the MCMC
+update step from the global (or a previously used local) to the currently used
+local workspace.
+"""
+function update_workspaces!(
+        local_updt::MCMCParamUpdate,
+        global_ws::GlobalWorkspace,
+        local_ws::LocalWorkspace,
+        step,
+        prev_ws,
+    )
+    state(local_ws) .= state(global_ws, local_updt) #local_ws.sub_ws.state on LHS
+    transfer_local_knowledge!(local_updt, local_ws, step, prev_ws)
+    compute_gradients_and_momenta!(local_updt, local_ws, __PREVIOUS)
+    local_ws, local_updt
+end
+
+function transfer_local_knowledge!(
+        local_updt::MCMCParamUpdate,
+        local_ws::LocalWorkspace,
+        step,
+        ::Nothing,
+    )
+end
+
+function transfer_local_knowledge!(
+        local_updt::MCMCParamUpdate,
+        local_ws::LocalWorkspace,
+        step,
+        prev_ws,
+    )
+    ll(local_ws) .= ll(prev_ws, step.prev_mcmciter)
+end
+
+
+#                          RELATED TO ADAPTATION
+#-------------------------------------------------------------------------------
+
+function update_adaptation!(
+        updates::AbstractArray{<:MCMCUpdate},
+        global_ws::GlobalWorkspace,
+        local_ws::LocalWorkspace,
+        step
+    )
+    _accepted = accepted(local_ws, step.mcmciter)
+    for (i, updt) in enumerate(updates)
+        update_adaptation!(_accepted, updt, global_ws, step, i)
+    end
+end
+
+function update_adaptation!(
+        accepted::Bool, updt::MCMCUpdate, global_ws, step, i
+    )
+    nothing
+end
+
+function update_adaptation!(
+        accepted::Bool, updt::MCMCParamUpdate, global_ws, step, i
+    )
+    typeof(updt.adpt) <: NoAdaptation && return
+    _my_turn = Val(step.pidx==i)
+    register_only_on_my_turn(_my_turn, updt.adpt) && return
+    register!(updt, updt.adpt, accepted, state(global_ws, updt))
+    ttu = time_to_update(_my_turn, updt.adpt)
+    #ttu && println("acceptance rate: ", acceptance_rate(updt.adpt))
+    #ttu && println("old ϵ: ", updt.rw.ϵ)
+    ttu && readjust!(updt.rw, updt.adpt, step.mcmciter)
+    #ttu && println("new ϵ: ", updt.rw.ϵ)
+end
+
+# overwrite for your custom adaptations if need be
+register_only_on_my_turn(::Val{true}, args...) = false
+register_only_on_my_turn(::Val{false}, args...) = true
+time_to_update(::Val{false}, args...) = false
+
+
+
+#           RELATED TO UPDATE (see the remaining methods in updates.jl)
+#-------------------------------------------------------------------------------
+#NOTE This is likely to change once conjugate and gradient-based updates are
+# implemented and some missing features are discovered
+"""
+    update!(
+        updt::MCMCParamUpdate,
+        global_ws::GlobalWorkspace,
+        ws::LocalWorkspace,
+        step,
+    )
+
+General recipe for performing parameter update (doing an update of the main
+`state` of the MCMC sampler).
+"""
+function update!(
+        updt::MCMCParamUpdate,
+        global_ws::GlobalWorkspace,
+        ws::LocalWorkspace,
+        step,
+    )
+    proposal!(updt, global_ws, ws, step) # specific to updt, see `updates.jl`
+    set_proposal!(updt, global_ws, ws, step)
+    compute_ll!(updt, global_ws, ws, step)
+    accept_reject!(updt, global_ws, ws, step)
+    update_stats!(global_ws, ws, step)
+end
+
+"""
+    set_proposal!(
+        updt::MCMCParamUpdate,
+        global_ws::GlobalWorkspace,
+        ws::LocalWorkspace,
+        step
+    )
+
+The proposal parameter θ° has been sampled by this point. This function
+propagates it through workspaces and sets the new parameter in proposal law `P°`
+"""
+function set_proposal!(
+        updt::MCMCParamUpdate,
+        global_ws::GlobalWorkspace,
+        local_ws::LocalWorkspace,
+        step
+    )
+    θ° = state°(global_ws, step)
+    θ° .= state(global_ws)
+    subidx(θ°, updt) .= state°(local_ws)
+
+    set_parameters!(__PROPOSAL, updt, global_ws, local_ws)
+end
+
+"""
+    compute_ll!(
+        global_ws::GlobalWorkspace,
+        ws::LocalWorkspace,
+        step,
+    )
+
+Evaluate the proposal log-likelihood at the observations.
+"""
+function compute_ll!(
+        updt::MCMCParamUpdate,
+        global_ws::GlobalWorkspace,
+        local_ws::LocalWorkspace,
+        step,
+    )
+    ll°(local_ws) .= loglikelihood(global_ws, __PROPOSAL)
+    ll°(local_ws, step.mcmciter) .= ll°(local_ws)
+    compute_gradients_and_momenta!(updt, local_ws, __PROPOSAL)
+end
+
+"""
+    accept_reject!(updt, global_ws, ws, step, i=1)
+
+Finish computations of the log-likelihood ratio between the target and proposal
+in MH acceptance probability and accept/reject respectively.
+"""
+function accept_reject!(
+        updt, global_ws, ws, step, _ll=ll(ws)[1], _ll°=ll°(ws)[1], i=1
+    )
+    llr = (
+        _ll° - _ll
+        + log_transition_density(__PROPOSAL, updt, ws)
+        - log_transition_density(__PREVIOUS, updt, ws)
+        + log_prior(__PROPOSAL, updt, ws)
+        - log_prior(__PREVIOUS, updt, ws)
+    )
+    accepted = rand(Exponential(1.0)) > -llr
+    register_accept_reject_results!(accepted, updt, global_ws, ws, step, i)
+end
+
+#NOTE by default accept conjugate updates?
+function accept_reject!(updt::MCMCConjugateUpdate, global_ws, ws, step)
+    register_accept_reject_results!(true, updt, global_ws, ws, step, i)
+end
+
+"""
+    register_accept_reject_results!(
+        accepted::Bool,
+        updt,
+        global_ws::GlobalWorkspace,
+        local_ws::LocalWorkspace,
+        step,
+        i=1
+    )
+Register the result of accept/reject step.
+"""
+function register_accept_reject_results!(
+        accepted::Bool,
+        updt,
+        global_ws::GlobalWorkspace,
+        local_ws::LocalWorkspace,
+        step,
+        i=1
+    )
+    register_accept_reject_results!(accepted, updt, local_ws, step, i)
+    θ = state(global_ws)
+    accepted && ( subidx(θ, updt) .= state°(local_ws) )
+    state(global_ws, step) .= θ
+    set_parameters!(__PREVIOUS, updt, global_ws, local_ws)
+end
+
+"""
+    register_accept_reject_results!(
+        accepted::Bool, updt, ws::LocalWorkspace, step, i=1
+    )
+
+Register the results of accept/reject step relevant to a local workspace.
+"""
+function register_accept_reject_results!(
+        accepted::Bool, updt, ws::LocalWorkspace, step, i=1
+    )
+    ll°(ws, step.mcmciter)[i] = ll°(ws)[i]
+    ll(ws, step.mcmciter)[i] = ( accepted ? ll°(ws)[i] : ll(ws)[i] )
+    set_accepted!(ws, step.mcmciter, accepted)
+end
+
+"""
+    log_transition_density(
+        ::Previous, updt::MCMCParamUpdate, ws::LocalWorkspace,
+    )
+
+Evaluate the log-density for a transition θ → θ°.
+"""
+function log_transition_density(
+        ::Previous,
+        updt::MCMCParamUpdate,
+        ws::LocalWorkspace,
+    )
+    log_transition_density(updt, state(ws), state°(ws))
+end
+
+"""
+    log_transition_density(
+        ::Proposal, updt::MCMCParamUpdate, ws::LocalWorkspace,
+    )
+
+Evaluate the log-density for a transition θ° → θ.
+"""
+function log_transition_density(
+        ::Proposal,
+        updt::MCMCParamUpdate,
+        ws::LocalWorkspace,
+    )
+    log_transition_density(updt, state°(ws), state(ws))
+end
+
+"""
+    log_prior(::Previous, updt::MCMCParamUpdate, ws::LocalWorkspace)
+
+Evaluate the log-prior at θ.
+"""
+function log_prior(::Previous, updt::MCMCParamUpdate, ws::LocalWorkspace)
+    log_prior(updt, state(ws))
+end
+
+"""
+    log_prior(::Proposal, updt::MCMCParamUpdate, ws::LocalWorkspace)
+
+Evaluate the log-prior at θ°.
+"""
+function log_prior(::Proposal, updt::MCMCParamUpdate, ws::LocalWorkspace)
+    log_prior(updt, state°(ws))
+end

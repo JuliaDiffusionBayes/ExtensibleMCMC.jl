@@ -1,8 +1,5 @@
 # Updates
-Updates are structs that hold instructions about the MCMC updates. Apart from ... each `update` must implement
-```@docs
-ExtensibleMCMC.log_transition_density(updt::ExtensibleMCMC.MCMCParamUpdate, θ, θ°)
-```
+Updates are structs that hold instructions about the MCMC updates.
 
 ## Metropolis Hastings with random walk proposals
 The simplest type of updates are Metropolis-Hastings updates with random walk proposals.
@@ -58,3 +55,30 @@ ExtensibleMCMC.GaussianRandomWalkMix
 ## Hamiltonian Monte Carlo
 
 # Custom MCMC updates and decorators
+Each `update` (that updates parameters) must implement
+```@docs
+ExtensibleMCMC.log_transition_density(updt::ExtensibleMCMC.MCMCParamUpdate, θ, θ°)
+ExtensibleMCMC.proposal!(updt::ExtensibleMCMC.MCMCParamUpdate, global_ws, ws::ExtensibleMCMC.LocalWorkspace, step)
+ExtensibleMCMC.set_parameters!(
+    ::ExtensibleMCMC.Proposal,
+    updt::ExtensibleMCMC.MCMCParamUpdate,
+    global_ws::ExtensibleMCMC.GlobalWorkspace,
+    ws::ExtensibleMCMC.LocalWorkspace,
+)
+ExtensibleMCMC.set_parameters!(
+    ::ExtensibleMCMC.Previous,
+    updt::ExtensibleMCMC.MCMCParamUpdate,
+    global_ws::ExtensibleMCMC.GlobalWorkspace,
+    ws::ExtensibleMCMC.LocalWorkspace,
+)
+```
+
+Additionally, the following methods are implemented, but may be overwritten:
+```@docs
+ExtensibleMCMC.log_prior(updt::ExtensibleMCMC.MCMCParamUpdate, θ)
+ExtensibleMCMC.coords(updt::ExtensibleMCMC.MCMCParamUpdate)
+ExtensibleMCMC.subidx(θ, updt::ExtensibleMCMC.MCMCParamUpdate)
+ExtensibleMCMC.compute_gradients_and_momenta!(
+    updt::ExtensibleMCMC.MCMCParamUpdate, ws::ExtensibleMCMC.LocalWorkspace, ::Any
+)
+```

@@ -34,7 +34,7 @@ mutable struct BivariateGaussian{T}
     end
 end
 
-function eMCMC.new_parameters!(gsn::BivariateGaussian, loc2glob_idx, θ)
+function eMCMC.set_parameters!(gsn::BivariateGaussian, loc2glob_idx, θ)
     μ, Σ = params(gsn.P)
     μ[loc2glob_idx] .= θ
     gsn.P = MvNormal(μ, Σ)

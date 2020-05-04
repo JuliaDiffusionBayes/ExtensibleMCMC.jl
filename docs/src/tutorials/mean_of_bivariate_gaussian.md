@@ -1,6 +1,6 @@
 # [Estimating mean of a bivariate Gaussian](@id tutorial_mean_of_bivariate_gsn)
 
-> For this tutorial we will show to estimate a mean of a bivariate Gaussian random variable from its 10 observations using a package ExtensibleMCMC.jl. We will define a `target law` and two methods: `new_parameters!` and `loglikelihood` that dispatch on our `target law`. We will then generate some data, show how to parameterize the Markov chain and run the sampler. Finally, we will show how to inspect the results.
+> For this tutorial we will show to estimate a mean of a bivariate Gaussian random variable from its 10 observations using a package ExtensibleMCMC.jl. We will define a `target law` and two methods: `set_parameters!` and `loglikelihood` that dispatch on our `target law`. We will then generate some data, show how to parameterize the Markov chain and run the sampler. Finally, we will show how to inspect the results.
 
 ## Defining the target law
 In [this folder](https://github.com/JuliaDiffusionBayes/ExtensibleMCMC.jl/tree/master/src/example) we have already defined some examples of the targets laws and a Gaussian law (with a possibility to estimate its mean and covariance matrix) is one of them. For the pedagogical purposes we define the new `BivariateGaussian` struct below.
@@ -25,7 +25,7 @@ We chose to define it as a mutable struct and use a pre-defined `MvNormal` struc
 
 ExtensibleMCMC.jl expects to have two functions implemented for the `target law`. The first one is a setter of new parameters
 ```julia
-function eMCMC.new_parameters!(gsn::BivariateGaussian, loc2glob_idx, θ)
+function eMCMC.set_parameters!(gsn::BivariateGaussian, loc2glob_idx, θ)
     μ, Σ = params(gsn.P)
     μ[loc2glob_idx] .= θ
     gsn.P = MvNormal(μ, Σ)
