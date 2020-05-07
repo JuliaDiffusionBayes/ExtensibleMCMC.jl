@@ -57,6 +57,7 @@ function update_stats!(
         local_ws.acceptance_history[step.mcmciter-cs.roll_window] :
         false
     )
+    
     cs.rolling_ar[step.mcmciter][step.pidx] = (
         ra_prev * cs.roll_window
         + (accepted_now - accepted_outside_window)

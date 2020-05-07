@@ -23,7 +23,7 @@
 """
     init_global_workspace(
         ::MCMCBackend,
-        schedule::MCMCSchedule,
+        num_mcmc_steps,
         updates::Vector{<:MCMCUpdate},
         data,
         θinit::Vector{T};
@@ -37,7 +37,7 @@ arguments passed to `run!`.
 """
 function init_global_workspace(
         ::MCMCBackend,
-        schedule::MCMCSchedule,
+        num_mcmc_steps,
         updates::Vector{<:MCMCUpdate},
         data,
         θinit::Vector{T};
@@ -214,14 +214,14 @@ end
 
 function init_global_workspace(
         ::GenericMCMCBackend,
-        schedule::MCMCSchedule,
+        num_mcmc_steps,
         updates::Vector{<:MCMCUpdate},
         data,
         θinit::Vector{T};
         kwargs...
     ) where T
     sub_ws = StandardGlobalSubworkspace(
-        schedule.num_mcmc_steps,
+        num_mcmc_steps,
         length(updates),
         data,
         θinit,

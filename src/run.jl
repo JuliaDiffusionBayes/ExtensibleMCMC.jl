@@ -94,11 +94,12 @@ function update_workspaces!(
         prev_ws,
     )
     state(local_ws) .= state(global_ws, local_updt) #local_ws.sub_ws.state on LHS
-    transfer_local_knowledge!(local_updt, local_ws, step, prev_ws)
+    prev_ws == nothing || ( ll(local_ws) .= ll(prev_ws, step.prev_mcmciter) )
     compute_gradients_and_momenta!(local_updt, local_ws, __PREVIOUS)
     local_ws, local_updt
 end
 
+#=
 function transfer_local_knowledge!(
         local_updt::MCMCParamUpdate,
         local_ws::LocalWorkspace,
@@ -115,7 +116,7 @@ function transfer_local_knowledge!(
     )
     ll(local_ws) .= ll(prev_ws, step.prev_mcmciter)
 end
-
+=#
 
 #                          RELATED TO ADAPTATION
 #-------------------------------------------------------------------------------
@@ -127,13 +128,14 @@ function update_adaptation!(
         step
     )
     _accepted = accepted(local_ws, step.mcmciter)
+
     for (i, updt) in enumerate(updates)
         update_adaptation!(_accepted, updt, global_ws, step, i)
     end
 end
 
 function update_adaptation!(
-        accepted::Bool, updt::MCMCUpdate, global_ws, step, i
+        accepted, updt::MCMCUpdate, global_ws, step, i
     )
     nothing
 end
@@ -238,14 +240,14 @@ Finish computations of the log-likelihood ratio between the target and proposal
 in MH acceptance probability and accept/reject respectively.
 """
 function accept_reject!(
-        updt, global_ws, ws, step, _ll=ll(ws)[1], _ll°=ll°(ws)[1], i=1
+        updt, global_ws, ws, step, _ll=sum(ll(ws)), _ll°=sum(ll°(ws)), i=1
     )
     llr = (
         _ll° - _ll
-        + log_transition_density(__PROPOSAL, updt, ws)
-        - log_transition_density(__PREVIOUS, updt, ws)
-        + log_prior(__PROPOSAL, updt, ws)
-        - log_prior(__PREVIOUS, updt, ws)
+        + log_transition_density(__PROPOSAL, updt, ws, i)
+        - log_transition_density(__PREVIOUS, updt, ws, i)
+        + log_prior(__PROPOSAL, updt, ws, i)
+        - log_prior(__PREVIOUS, updt, ws, i)
     )
     accepted = rand(Exponential(1.0)) > -llr
     register_accept_reject_results!(accepted, updt, global_ws, ws, step, i)
@@ -276,10 +278,18 @@ function register_accept_reject_results!(
         i=1
     )
     register_accept_reject_results!(accepted, updt, local_ws, step, i)
-    θ = state(global_ws)
-    accepted && ( subidx(θ, updt) .= state°(local_ws) )
-    state(global_ws, step) .= θ
+    set_chain_param!(accepted, updt, global_ws, local_ws, step)
     set_parameters!(__PREVIOUS, updt, global_ws, local_ws)
+end
+
+function set_chain_param!(accepted, updt, global_ws, local_ws, step)
+    θ = state(global_ws)
+    accepted && (
+        # update current local and global states
+        state(local_ws) .= state°(local_ws);
+        subidx(θ, updt) .= state°(local_ws)
+    )
+    state(global_ws, step) .= θ
 end
 
 """
@@ -299,7 +309,7 @@ end
 
 """
     log_transition_density(
-        ::Previous, updt::MCMCParamUpdate, ws::LocalWorkspace,
+        ::Previous, updt::MCMCParamUpdate, ws::LocalWorkspace, i
     )
 
 Evaluate the log-density for a transition θ → θ°.
@@ -308,13 +318,14 @@ function log_transition_density(
         ::Previous,
         updt::MCMCParamUpdate,
         ws::LocalWorkspace,
+        i
     )
     log_transition_density(updt, state(ws), state°(ws))
 end
 
 """
     log_transition_density(
-        ::Proposal, updt::MCMCParamUpdate, ws::LocalWorkspace,
+        ::Proposal, updt::MCMCParamUpdate, ws::LocalWorkspace, i
     )
 
 Evaluate the log-density for a transition θ° → θ.
@@ -323,24 +334,25 @@ function log_transition_density(
         ::Proposal,
         updt::MCMCParamUpdate,
         ws::LocalWorkspace,
+        i
     )
     log_transition_density(updt, state°(ws), state(ws))
 end
 
 """
-    log_prior(::Previous, updt::MCMCParamUpdate, ws::LocalWorkspace)
+    log_prior(::Previous, updt::MCMCParamUpdate, ws::LocalWorkspace, i)
 
 Evaluate the log-prior at θ.
 """
-function log_prior(::Previous, updt::MCMCParamUpdate, ws::LocalWorkspace)
+function log_prior(::Previous, updt::MCMCParamUpdate, ws::LocalWorkspace, i)
     log_prior(updt, state(ws))
 end
 
 """
-    log_prior(::Proposal, updt::MCMCParamUpdate, ws::LocalWorkspace)
+    log_prior(::Proposal, updt::MCMCParamUpdate, ws::LocalWorkspace, i)
 
 Evaluate the log-prior at θ°.
 """
-function log_prior(::Proposal, updt::MCMCParamUpdate, ws::LocalWorkspace)
+function log_prior(::Proposal, updt::MCMCParamUpdate, ws::LocalWorkspace, i)
     log_prior(updt, state°(ws))
 end

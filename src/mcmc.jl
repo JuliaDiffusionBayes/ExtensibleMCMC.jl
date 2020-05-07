@@ -88,18 +88,30 @@ function init!(
         exclude_updates=[];
         kwargs...
     )
-    mcmc.schedule = MCMCSchedule(
-        num_mcmc_steps,
-        length(mcmc.updates),
-        exclude_updates,
-    )
-
     mcmc.workspace = init_global_workspace(
         mcmc.backend,
-        mcmc.schedule,
+        num_mcmc_steps,
         mcmc.updates,
         data,
         θinit;
         kwargs...
     )
+    mcmc.schedule = MCMCSchedule(
+        num_mcmc_steps,
+        length(mcmc.updates),
+        exclude_updates;
+        extra_schedule_params(
+            mcmc.workspace,
+            mcmc.updates_and_decorators;
+            kwargs...
+        )...
+    )
+end
+
+function extra_schedule_params(
+        workspace::GlobalWorkspace,
+        updates_and_decorators;
+        kwargs...
+    )
+    tuple()
 end

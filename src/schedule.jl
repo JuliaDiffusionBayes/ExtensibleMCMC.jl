@@ -14,28 +14,33 @@ in `exclude_updates`. The `num_updates` and `exclude_updates` can change in the
 midst of iterating through the `MCMCSchedule` and the iterator will register
 that and act accordingly.
 """
-mutable struct MCMCSchedule
+mutable struct MCMCSchedule{BE,S,EI}
     num_mcmc_steps::Int64
     num_updates::Int64
-    start::NamedTuple{(:prev_pidx, :mcmciter, :pidx),Tuple{Nothing,Int64,Int64}}
+    start::S
     exclude_updates::DefaultDict{Int64,OrdinalRange{Int64,Int64},UnitRange{Int64}}
+    extra_info::EI
 
     function MCMCSchedule(
             num_mcmc_steps,
             num_updates,
-            exclude_updates=[]
-        ) where {K,S}
+            exclude_updates=[];
+            start::S=(prev_mcmciter=nothing, prev_pidx=nothing, mcmciter=1, pidx=1),
+            backend::BE=GenericMCMCBackend(),
+            extra_info::EI=nothing
+        ) where {S,BE,EI}
         tuples_excluded_updates = DefaultDict{Int64,OrdinalRange{Int64,Int64}}(0:0)
         for exclude_update in exclude_updates
             for idx in exclude_update[1]
                 tuples_excluded_updates[idx] = exclude_update[2]
             end
         end
-        new(
+        new{BE,S,EI}(
             num_mcmc_steps,
             num_updates,
-            (prev_pidx=nothing, mcmciter=1, pidx=1),
-            tuples_excluded_updates
+            start,
+            tuples_excluded_updates,
+            extra_info
         )
     end
 end
@@ -56,8 +61,11 @@ function Base.iterate(iter::MCMCSchedule, state=iter.start)
         mcmciter = state.mcmciter,
         pidx = state.pidx,
     )
-    return (state, transition(iter, new_state_tmp))
+    new_state = transition(iter, new_state_tmp)
+    return (state, extra_transitions(iter, new_state))
 end
+
+extra_transitions(iter::MCMCSchedule, new_state) = new_state
 
 
 """

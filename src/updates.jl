@@ -108,6 +108,8 @@ Return a list of coordinates that `updt` is concerned with
 """
 coords(updt::MCMCParamUpdate) = updt.coords
 
+invcoords(updt::MCMCParamUpdate) = updt.invcoords
+
 """
     subidx(θ, updt::MCMCParamUpdate)
 
@@ -160,6 +162,7 @@ struct RandomWalkUpdate{TRW,TA,K,TP} <: MCMCParamUpdate
     rw::TRW
     adpt::TA
     coords::K
+    invcoords::Dict{Int64,Int64}
     prior::TP
 
     function RandomWalkUpdate(
@@ -168,16 +171,21 @@ struct RandomWalkUpdate{TRW,TA,K,TP} <: MCMCParamUpdate
             prior::TP=ImproperPrior(),
             adpt::TA=NoAdaptation()
         ) where {TRW<:RandomWalk,K,TA,TP}
-        new{TRW,TA,K,TP}(rw, adpt, idx_of_global, prior)
+        invcoords = Dict{Int64,Int64}()
+        for (i,coord) in enumerate(idx_of_global)
+            invcoords[coord] = i
+        end
+
+        new{TRW,TA,K,TP}(rw, adpt, idx_of_global, invcoords, prior)
     end
 end
 
 log_transition_density(updt::RandomWalkUpdate, θ, θ°) = logpdf(updt.rw, θ, θ°)
 
 function proposal!(updt::RandomWalkUpdate, global_ws, ws::LocalWorkspace, step)
-    rand!(updt.rw, ws.sub_ws.state, ws.sub_ws°.state)
+    rand!(updt.rw, state(ws), state°(ws))
     while (logpdf(updt.prior, ws.sub_ws°.state) === -Inf)
-        rand!(updt.rw, ws.sub_ws.state, ws.sub_ws°.state)
+        rand!(updt.rw, state(ws), state°(ws))
     end
 end
 
