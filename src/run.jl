@@ -6,23 +6,35 @@
 ===============================================================================#
 
 """
-    run!(mcmc::MCMC, num_mcmc_steps, data, θinit, callbacks; kwargs...)
+    run!(
+        mcmc::MCMC, num_mcmc_steps, data, θinit, callbacks=Callback[];
+        kwargs...
+    )
 
 The main calling function of this package that initializes, runs and outputs the
-results of an MCMC sampler for discretely observed stochastic processes. `mcmc`
-specifies the sequence of updates that constitute a single MCMC step and
-provides additional info about the MCMC backend algorithm to be used.
-`num_mcmc_steps` is the total number of MCMC steps, `data` completely
-characterizes everything that is known about the observations (including
-everything known about the underlying dynamics and the way it was collected),
-`θinit` is the initial guess for the unknown parameters and `callbacks` is a
-collection of extra utility functions that do extra work around MCMC sampling.
-`exclude_updates` is a standard named argument which lists the update indices
-and corresponding ranges of MCMC iterations at which given updates are supposed
-to be omitted. Additional named arguments are passed onto initializers of global
-workspace and depend on the chosen `MCMCBackend`.
+results of an MCMC sampler for discretely observed stochastic processes.
+
+# Arguments
+- `mcmc::MCMC`: specifies a sequence of updates that constitute a single MCMC step
+                and provides additional info about the MCMC backend algorithm to
+                be used
+- `num_mcmc_steps`: the total number of MCMC steps
+- `data`: completely characterizes everything that is known about the
+          observations (including everything known about the underlying dynamics
+          and the way it was collected),
+- `θinit`: an initial guess for the unknown parameters
+- `callbacks`: a collection of extra utility functions that do extra work around
+               MCMC sampling.
+- `exclude_updates`: a standard named argument which lists the update indices
+                     and corresponding ranges of MCMC iterations at which given
+                     updates are supposed to be omitted.
+- `kwargs...`: additional named arguments, passed onto initializers of global
+               workspace; they depend on the chosen `MCMCBackend`
 """
-function run!(mcmc::MCMC, num_mcmc_steps, data, θinit, callbacks=Callback[]; kwargs...)
+function run!(
+        mcmc::MCMC, num_mcmc_steps, data, θinit, callbacks=Callback[];
+        kwargs...
+    )
     init!(
         mcmc,
         num_mcmc_steps,
@@ -127,7 +139,9 @@ function update_adaptation!(
         local_ws::LocalWorkspace,
         step
     )
-    _accepted = accepted(local_ws, step.mcmciter)
+    # there may be a list, you must make sure that the first entry only is used
+    # for param updates.
+    _accepted = first(accepted(local_ws, step.mcmciter))
 
     for (i, updt) in enumerate(updates)
         update_adaptation!(_accepted, updt, global_ws, step, i)
@@ -135,7 +149,7 @@ function update_adaptation!(
 end
 
 function update_adaptation!(
-        accepted, updt::MCMCUpdate, global_ws, step, i
+        accepted::Bool, updt::MCMCUpdate, global_ws, step, i
     )
     nothing
 end
@@ -206,11 +220,19 @@ function set_proposal!(
         local_ws::LocalWorkspace,
         step
     )
+    _set_local_state°(updt, global_ws, local_ws, step)
+    set_parameters!(__PROPOSAL, updt, global_ws, local_ws)
+end
+
+function _set_local_state°(
+        updt::MCMCParamUpdate,
+        global_ws::GlobalWorkspace,
+        local_ws::LocalWorkspace,
+        step
+    )
     θ° = state°(global_ws, step)
     θ° .= state(global_ws)
     subidx(θ°, updt) .= state°(local_ws)
-
-    set_parameters!(__PROPOSAL, updt, global_ws, local_ws)
 end
 
 """
@@ -250,6 +272,7 @@ function accept_reject!(
         - log_prior(__PREVIOUS, updt, ws, i)
     )
     accepted = rand(Exponential(1.0)) > -llr
+    #println("i: $(step.mcmciter), ll: $(_ll), ll°: $(_ll°), llr: $(llr), a/r: ", (accepted ? "✔" : "✘"))
     register_accept_reject_results!(accepted, updt, global_ws, ws, step, i)
 end
 

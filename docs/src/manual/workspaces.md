@@ -1,11 +1,20 @@
-# The idea behind `Workspace`s
-Markov chain Monte Carlo algorithms often involve computationally expensive routines. As these often need to be repeated at each MCMC iteration, the MCMC algorithm may be sped up significantly by pre-allocating suitable containers on which all or a majority of the computations are to be performed. In `ExtensibleMCMC.jl` these containers are termed `Workspace`s.
+# [The idea behind `Workspace`s](@id workspaces_explained)
+Markov chain Monte Carlo algorithms often involve computationally expensive routines. As these often need to be repeated at each MCMC iteration, the MCMC algorithm may be sped up significantly by pre-allocating suitable containers on which all or a majority of computations are supposed to be performed. In `ExtensibleMCMC.jl` these containers are termed
+
+```@docs
+ExtensibleMCMC.Workspace
+```
 
 There are two types of `Workspace`s:
 1. `GlobalWorkspace`s and
 2. `LocalWorkspace`s
 
 ## Workspaces inheriting from `GlobalWorkspace`
+
+```@docs
+ExtensibleMCMC.GlobalWorkspace
+```
+
 `GlobalWorkspace`, is the master `Workspace` that is responsible for:
 - keeping track of the MCMC chain, in particular the most recent `state` of the chain
 - holding the observed data (or at least a pointer to it)
@@ -34,6 +43,11 @@ ExtensibleMCMC.StandardGlobalSubworkspace
 
 
 ## Workspaces inheriting from `LocalWorkspace`
+
+```@docs
+ExtensibleMCMC.LocalWorkspace
+```
+
 Each MCMC `update` (for instance `RandomWalkUpdate`) will have its own `LocalWorkspace`. During updates it will have access to both its `LocalWorkspace` as well as the `GlobalWorkspace`, but it will not see `LocalWorkspace`s of other `update`s (however, information between `LocalWorkspace`s may be exchanged prior to each update call). Conceptually, the objects that fall under `LocalWorkspace` are those that
 - belong only to a local scope (for instance, proposal `ϑ°` for a subset `ϑ` of all parameters `θ`, or the `∇log-likelihood`)
 - provide appropriately shaped views to a global view (for instance, a view to a subset of observations that are to be used for computations in this `update`, or a recipe for how to sub-sample the observations)
@@ -50,19 +64,17 @@ ExtensibleMCMC.StandardLocalSubworkspace
 ```
 
 
-********************************************************************************
+**********
+**********
 
 # Custom `Workspaces`
+****
 One of the most important aspects of `ExtensibleMCMC.jl` is customizability of `Workspace`s. Below, we describe how to define your own `Workspace`s.
 
 
 ## Custom `GlobalWorkspace`
---------------------------------------------------------------------------------
-Each `<CUSTOM>GlobalWorskspace` needs to inherit from `GlobalWorkspace`.
-```@docs
-ExtensibleMCMC.GlobalWorkspace
-```
-Apart from struct definition we need to provide a `<CUSTOM>Backend` inheriting from:
+----
+Each `<CUSTOM>GlobalWorskspace` needs to inherit from `GlobalWorkspace`. Apart from struct definition we need to provide a `<CUSTOM>Backend` inheriting from:
 ```@docs
 ExtensibleMCMC.MCMCBackend
 ```
@@ -104,13 +116,8 @@ ExtensibleMCMC.estim_cov(ws::ExtensibleMCMC.GlobalWorkspace)
 ```
 
 # Custom `LocalWorkspace`
---------------------------------------------------------------------------------
-Each `<CUSTOM>LocalWorskspace` needs to inherit from `LocalWorkspace`.
-```@docs
-ExtensibleMCMC.LocalWorkspace
-```
-
-Additionally, if you plan on re-using some components of `ExtensibleMCMC.jl`, then the following methods **MUST** be defined for your `<CUSTOM>LocalWorskspace` (using  `<CUSTOM>LocalWorskspace` in place of `LocalWorkspace`):
+-----------------
+Each `<CUSTOM>LocalWorskspace` needs to inherit from `LocalWorkspace`. Additionally, if you plan on re-using some components of `ExtensibleMCMC.jl`, then the following methods **MUST** be defined for your `<CUSTOM>LocalWorskspace` (using  `<CUSTOM>LocalWorskspace` in place of `LocalWorkspace`):
 ```@docs
 ExtensibleMCMC.create_workspace(
     ::ExtensibleMCMC.MCMCBackend,

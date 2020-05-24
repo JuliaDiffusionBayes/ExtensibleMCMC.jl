@@ -75,7 +75,7 @@ end
 
 Define an adaptation scheme for a random walker that does updates on the
 parameter of shape and type `θ`. The following named parameters can be specified
-...
+
 # Arguments
 - `adapt_every_k_steps=100`: number of steps based on which adaptation happens
 - `target_accpt_rate=0.234`: acceptance rate of MH step that is to be targetted
@@ -84,7 +84,6 @@ parameter of shape and type `θ`. The following named parameters can be specifie
 - `max=1e7`: maximum allowable (half)-range of the unifor sampler
 - `offset=1e2`: number of adaptation steps after which the shrinking of adaptive
                 steps is supposed to start.
-...
 """
 function AdaptationUnifRW(θ::K; kwargs...) where K
     non_vec_kwargs = [:adapt_every_k_steps, :target_accpt_rate]
@@ -326,7 +325,7 @@ end
 #===============================================================================
                         Haario-type adaptive scheme
 ===============================================================================#
-"""
+@doc raw"""
     mutable struct HaarioTypeAdaptation{T,TF} <: Adaptation
         mean::Vector{T}
         cov::Matrix{T}
@@ -338,15 +337,31 @@ end
     end
 
 A struct containing information about the way in which to adapt the steps of the
-Gaussian random walker in a scheme: Xᵢ₊₁ = λZ+(1-λ)W, where Z ∼ N(Xᵢ, cI) and
-W ∼ N(Xᵢ, Σₐ), with Σₐ the covariance matrix that the adaptive scheme aims to
-learn. `mean` and `cov` are the empirical mean and covariance of the
-(appropriately log-transformed) local `state` vector. Every
-`adapt_every_k_steps` number of steps an adaptation is performed. `scale` is
-a scaling for going from the empirical covariance to the covariance of the
-Gaussian random walker. `N` is the total number of terms based on which the
-`mean` and `cov` were computed, `M` is the number of updates since the last call
-to adaptation and `fλ` is a function for determining the `λ` weight.
+Gaussian random walker in a scheme:
+```math
+X_{i+1} = λZ+(1-λ)W,\quad\mbox{where}\quad Z ∼ N(X_i, c\texttt{Id}),
+```
+and
+```math
+W ∼ N(X_i, Σ_A),
+```
+with $Σ_A$ the covariance matrix that the adaptive scheme aims to learn. `mean`
+and `cov` are the empirical mean and covariance of the (appropriately
+log-transformed) local `state` vector. Every `adapt_every_k_steps` number of
+steps an adaptation is performed. `scale` is a scaling for going from the
+empirical covariance to the covariance of the Gaussian random walker. `N` is the
+total number of terms based on which the `mean` and `cov` were computed, `M` is
+the number of updates since the last call to adaptation and `fλ` is a function
+for determining the `λ` weight.
+
+    HaarioTypeAdaptation(
+            state::Vector{T};
+            adapt_every_k_steps=100,
+            scale = 2.38^2,
+            f::TF=((x,y,z)->x),
+        ) where {T,TF}
+
+Base constructor.
 """
 mutable struct HaarioTypeAdaptation{T,TF} <: Adaptation
     mean::Vector{T}

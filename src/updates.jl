@@ -149,14 +149,14 @@ coordinate indeces of the global `state` that the given update operates on and
 `prior` is a prior for this update step (i.e. for a given subset of parameter
 vector).
 
-        function RandomWalkUpdate(
-            rw::TRW,
-            idx_of_global::K;
-            prior::TP=ImproperPrior(),
-            adpt::TA=NoAdaptation()
-        ) where {TRW<:RandomWalk,K,TA,TP}
+    function RandomWalkUpdate(
+        rw::TRW,
+        idx_of_global::K;
+        prior::TP=ImproperPrior(),
+        adpt::TA=NoAdaptation()
+    ) where {TRW<:RandomWalk,K,TA,TP}
 
-    Base constructor.
+Base constructor.
 """
 struct RandomWalkUpdate{TRW,TA,K,TP} <: MCMCParamUpdate
     rw::TRW

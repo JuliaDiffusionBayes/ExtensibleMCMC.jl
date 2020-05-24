@@ -24,6 +24,7 @@ makedocs(;
         "Get started" => joinpath("get_started", "basic_use.md"),
         "User manual" => Any[
             "Internal structure" => joinpath("manual", "internal_structure.md"),
+            "MCMC" => joinpath("manual", "mcmc.md"),
             "Updates & Decorators" => joinpath("manual", "updates_and_decorators.md"),
             "Callbacks" => joinpath("manual", "callbacks.md"),
             "Priors" => joinpath("manual", "priors.md"),

@@ -3,8 +3,6 @@
 ===============================================================================#
 
 """
-    MCMCUpdate
-
 Supertype of all MCMC updates
 """
 abstract type MCMCUpdate end
@@ -43,8 +41,6 @@ variables that are not of direct interest to the MCMC chain.
 abstract type MCMCImputation <: MCMCUpdate end
 
 """
-    MCMCUpdateDecorator
-
 Supertype of all decorators to update schemes. In this context, we use the word
 `decorator` to refer to any additional information that needs to be conveyed to
 the MCMC sampler that is not directly extractable from the update-objects
@@ -61,9 +57,7 @@ Returns true if `u` is a subtype of decorators.
 isdecorator(u) = (typeof(u) <: MCMCUpdateDecorator)
 
 """
-    Workspace
-
-Supertype of all workspaces---i.e. of structs that gather in one place various
+Supertype of all workspaces—i.e. of structs that gather in one place various
 objects that the MCMC sampler operates on.
 """
 abstract type Workspace end
@@ -88,8 +82,6 @@ already in a global workspace. Each MCMC update has its own `LocalWorkspace`.
 abstract type LocalWorkspace{T} <: Workspace end
 
 """
-    TransitionKernel
-
 Supertype of all transition kernels that perform updates on the main `state`
 of the global workspace. Conceptually, these are used by subtypes of
 `MCMCParamUpdate` to perform actual sampling and instances of types inheriting
@@ -99,22 +91,18 @@ from `MCMCParamUpdate`.
 abstract type TransitionKernel end
 
 """
-    Adaptation
-
 Supertype for all adaptation schemes.
 """
 abstract type Adaptation end
 
 
 """
-    MCMCBackend
-
 Supertype of all backends for the MCMC sampler.
 """
 abstract type MCMCBackend end
 
 """
-    GenericMCMCBackend
+    GenericMCMCBackend <: MCMCBackend
 
 A flag that no specific backend is passed.
 """

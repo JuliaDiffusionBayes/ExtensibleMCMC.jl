@@ -20,15 +20,27 @@ abstract type RandomWalk <: TransitionKernel end
                             Uniform random walk
 ===============================================================================#
 
-"""
+@doc raw"""
     mutable struct UniformRandomWalk{T,S} <: RandomWalk
         ϵ::T
         pos::S
     end
 
-A uniform random walker that moves all unrestricted coordinates according to the
-additive rule xᵢ+U, with U∼Unif(-ϵᵢ,ϵᵢ) and moves all coordinates restricted to
-be positive according to the rule xᵢexp(U), with U∼Unif(-ϵᵢ,ϵᵢ).
+A uniform random walker that moves all **unrestricted** coordinates according to
+the additive rule
+```math
+x_i+U,
+    \quad\mbox{with}
+        \quad U\sim\texttt{Unif}([-ϵ_i,ϵ_i]),
+            \qquad i\in\texttt{indices},
+```
+and moves all coordinates **restricted to be positive** according to the rule
+```math
+x_i\exp(U),
+    \quad\mbox{with}
+        \quad U\sim\texttt{Unif}([-ϵ_i,ϵ_i]),
+            \qquad i\in\texttt{indices}.
+```
 """
 mutable struct UniformRandomWalk{T,S} <: RandomWalk
     ϵ::T
@@ -85,17 +97,28 @@ end
 #===============================================================================
                             Gaussian random walk
 ===============================================================================#
-"""
+@doc raw"""
     mutable struct GaussianRandomWalk{T} <: RandomWalk
         Σ::Symmetric{T,Array{T,2}}
         pos::Vector{Bool}
     end
 
 A Gaussian random walker that first transforms all coordinates restricted to be
-positive to a log-scale via log(θᵢ), then moves according to θ°∼N(θ, Σ) and
-finally transforms the restricted coordinates back to the original scale via
-exp(θᵢ°). Restrictions are specified in the vector `pos` (and no restrictions
-correspond to all entries in `pos` being false).
+positive to a log-scale via
+```math
+θ_i\leftarrow\log(θ_i),\quad i\in\{i: θ_i\texttt{_restricted_to_be_positive}\},
+```
+then moves according to
+```math
+θ°∼N(θ, Σ),\quad \forall i,
+```
+and finally, transforms the restricted coordinates back to the original scale
+via
+```math
+θ°_i\leftarrow\exp(θ°_i),\quad i\in\{i: θ_i\texttt{_restricted_to_be_positive}\}.
+```
+Restrictions are specified in the vector `pos` (and no restrictions correspond
+to all entries in `pos` being `false`).
 """
 mutable struct GaussianRandomWalk{T} <: RandomWalk
     Σ::Symmetric{T,Array{T,2}}
@@ -150,7 +173,7 @@ end
 #===============================================================================
             A mixture of two multidimensional Gaussian random walks
 ===============================================================================#
-"""
+@doc raw"""
     mutable struct GaussianRandomWalkMix{T} <: RandomWalk
         gsn_A::GaussianRandomWalk{T}
         gsn_B::GaussianRandomWalk{T}
@@ -158,8 +181,14 @@ end
     end
 
 A mixture of two Gaussian random walkers. It performs updates according to
-Xᵢ₊₁ = Xᵢ + λZₐ + (1-λ)Zᵦ, where Zₐ ∼ N(0,Σₐ) and Zᵦ ∼ N(0, Σᵦ) (with Xᵢ being
-already appropriately log-transformed if needed).
+```math
+X_{i+1} = X_i + λZ_A + (1-λ)Z_B,
+```
+where
+```math
+Z_A ∼ N(0,Σ_A),\quad\mbox{and}\quad Z_B ∼ N(0, Σ_B),
+```
+(with $X_i$ being already appropriately log-transformed if needed).
 """
 mutable struct GaussianRandomWalkMix{T} <: RandomWalk
     gsn_A::GaussianRandomWalk{T}

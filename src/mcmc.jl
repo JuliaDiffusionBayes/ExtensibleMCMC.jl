@@ -18,16 +18,16 @@ A struct for defining a list of updates and specifying the backend algorithm
 doing the MCMC sampling. Any other functionality is done solely by the internal
 mechanizms of function the `run!`.
 
-        MCMC(
-            updt_and_decor::Vector{<:Union{MCMCUpdate,MCMCUpdateDecorator}};
-            backend=GenericMCMCBackend()
-        )
+    MCMC(
+        updt_and_decor::Vector{<:Union{MCMCUpdate,MCMCUpdateDecorator}};
+        backend=GenericMCMCBackend()
+    )
 
-    The main constructor of an `MCMC` struct. It accepts an array of updates and
-    update decorators `updates_and_decorators` which together constitute a
-    single MCMC step. Additionally, `backend` specialized to a particular,
-    overarching MCMC algorithm (if it exists). An example of a backend would be
-    `GuidedProposalsBackend`.
+The main constructor of an `MCMC` struct. It accepts an array of updates and
+update decorators `updates_and_decorators` which together constitute a single
+MCMC step. Additionally, `backend` specialized to a particular, overarching MCMC
+algorithm (if it exists). An example of a backend would be
+`DiffusionMCMCBackend` (from the package `DiffusionMCMC.jl`).
 """
 mutable struct MCMC
     updates::Vector

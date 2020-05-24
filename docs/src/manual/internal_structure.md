@@ -1,4 +1,6 @@
 # [Understanding the internal components of the sampler](@id manual_start)
+******************************************
+
 It is important to understand the main principles behind the underlying algorithm, as they shed light on understanding the individual components. Once you understand the big picture it should also be easier to write your own extensions.
 
 The structure of the algorithm can be summarized with the following graph which we will break down below:
@@ -6,7 +8,7 @@ The structure of the algorithm can be summarized with the following graph which 
 ![internal structure](../assets/workflow.svg)
 
 ## Inputs
-
+---------
 The inputs to the algorithm are of three types.
 
 ### MCMC
@@ -30,6 +32,7 @@ As well as some additional named options (`kwargs...`) that will be passed down 
 
 
 ## Initialization
+-----------------
 At the time of initialization of the sampler the global, **and then**, local workspaces are created. The concept of workspaces is central to ExtensibleMCMC and it is the reason why the package can be efficient even for very computationally intensive problems. The workspaces are essentially pre-allocated pieces of memory needed by the MCMC sampler. Consequently, if implemented correctly, the bottleneck of the algorithm should lie in computations and not memory-allocations.
 
 !!! tip
@@ -40,7 +43,8 @@ After workspaces, the `MCMCSchedule` is initialized. It is an iterator that iter
 Finally, each of the callback is given a chance to perform some initializations.
 
 ## The algorithm
-In principle, there is nothing explicit about `The Algorithm` being a representation of an `MCMC` algorithm. It becomes one implicitly, by the virtue of `update`s being of the MCMC type.
+----------------
+In principle, there is nothing explicit in `The Algorithm` signifying that it is an `MCMC` algorithm. However, it becomes an MCMC algorithm, by the virtue of `update`s being of the MCMC type.
 
 The important part is marked in red. It represents a single MCMC update and illustrates that each update sees the corresponding pair of `update` and its local `workspace` as well global `workspace` and performs updates based on instructions in `update` and using pieces of memory that are in a local and the global `workspace`.
 

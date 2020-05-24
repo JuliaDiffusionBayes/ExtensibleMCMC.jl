@@ -1,4 +1,5 @@
 # Callbacks
+***********
 Callbacks are instructions that allow for certain interactions with the state of the sampler while the sampler is still working.
 
 Each concrete implementation of a callback inherits from
@@ -17,11 +18,13 @@ This package implements two types of callbacks:
     To pass a list of `Callback`s to an mcmc sampler pass them in a list to a `run!` function.
 
 ## Callback for printing progress messages to REPL
+--------------------------------------------------
 ```@docs
 ExtensibleMCMC.REPLCallback
 ```
 
 ## Callback for saving intermediate results to CSV files
+--------------------------------------------------------
 ```@docs
 ExtensibleMCMC.SavingCallback
 ```
@@ -29,7 +32,9 @@ ExtensibleMCMC.SavingCallback
     If each iteration of your MCMC sampler is very fast then you should avoid appending to CSV files at each iteration of the MCMC chain to prevent slow-downs. Use `save_at_iters` to specify the iterations at which to save to CSV files.
 
 ## Writing custom callbacks
-Each custom callback may provide interface for the following methods:
+---------------------------
+You may write your own, custom callback. For each such callback you may provide the following methods. If these are not provided they will
+fall on defaults that do nothing.
 ```@docs
 ExtensibleMCMC.init!(
     ::ExtensibleMCMC.Callback,

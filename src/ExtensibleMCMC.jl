@@ -3,6 +3,8 @@ module ExtensibleMCMC
     using StaticArrays, Distributions, Random, DataStructures, LinearAlgebra
     using Dates
 
+    import Distributions: logpdf
+
     include("types.jl") # ✔
 
     const __PREVIOUS = Previous()

@@ -9,8 +9,6 @@
 ===============================================================================#
 
 """
-    Callback
-
 Supertype of all callbacks. They specify additional actions that can be
 performed before or after each MCMC step or at the very end of sampling.
 """
@@ -110,14 +108,19 @@ hard drive.
         path=".",
     )
 
-The main constructor for `SavingCallback`. `save_at_the_end` indicates
-whether to save to a file at the end of mcmc sampling, `save_at_iters`
-specifies at which additional intermediate iterations the chain should be
-saved to a file, set `overwrite` to true to overwrite any already existing
-file that shares the name with the one passed to this function. `filename`
-is the main stem of the file's name, `add_datestamps` will add the date and
-time at the time of creating the callback to the filename and `path`
-specifies the directory path to save to.
+The main constructor for `SavingCallback`.
+
+# Arguments
+- `save_at_the_end`: indicates whether to save to a file at the end of mcmc
+                     sampling
+- `save_at_iters`: specifies at which additional intermediate iterations the
+                   chain should be saved to a file
+- `overwrite`: set to true to overwrite any already existing file that shares
+               the name with the one passed to this function
+- `filename`: the main stem of the file's name
+- `add_datestamps`: will add the date and time at the time of creating the
+                    callback to the filename if set to `true`
+- `path`: specifies the directory path to save to
 """
 struct SavingCallback <: Callback
     save_at_the_end::Bool

@@ -1,24 +1,19 @@
-# Updates
+# [Updates](@id updates_and_decorators)
+*********
 Updates are structs that hold instructions about the MCMC updates.
 
-## Metropolis Hastings with random walk proposals
-The simplest type of updates are Metropolis-Hastings updates with random walk proposals.
+## Metropolis–Hastings with random walk proposals
+---------------------
+The simplest types of updates are the Metropolis-Hastings updates with random walk proposals.
 ```@docs
 ExtensibleMCMC.RandomWalkUpdate
 ```
-The random walk can be any viable distribution, below we present two cases that have been implemented.
+A random walk can make steps according to any viable distribution, below we present two cases that have been implemented.
 !!! note
     Very often we only need to update a subset of the parameters as in the Metropolis-within-Gibbs algorithm. This is easily done by specifying the indices of relevant coordinates in `idx_of_global` field in the constructor.
 
 ### Uniform Random Walker
-The simplest type of walker is a Uniform random walker. It samples
-```math
-U_i\sim\texttt{Unif([}-\epsilon,\epsilon\texttt{])},\quad i\in\texttt{idx_of_global},
-```
-and then, advances each state according to
-```math
-X_i + U_i,\quad i\in\texttt{idx_of_global}.
-```
+The simplest type of walker is a *Uniform* random walker.
 ```@docs
 ExtensibleMCMC.UniformRandomWalk
 ```
@@ -29,11 +24,12 @@ ExtensibleMCMC.UniformRandomWalk
 The uniform random walker depends on the hyper-parameter $$ϵ$$, which has a large effect on the learning speed of the MCMC sampler. This hyper-parameter can be learned adaptively in a standard way, by targeting the acceptance rate of the sampler. To turn the adaptation on we have to pass an appropriately initialized `AdaptationUnifRW` as a keyword argument `adpt`:
 ```@docs
 ExtensibleMCMC.AdaptationUnifRW
+ExtensibleMCMC.AdaptationUnifRW(θ; kwargs...)
 ```
-To see a simple example of a difference that adaptation can make see the [Tutorial on estimating the mean of a simple bivariate Gaussian](@ref tutorial_mean_of_bivariate_gsn)
+To see a simple example illustrating what kind of dramatic difference adaptation can make see the [Tutorial on estimating the mean of a bivariate Gaussian random variable](@ref tutorial_mean_of_bivariate_gsn)
 
 ### Gaussian Random Walker
-Another implemented type of random walker is a Gaussian random walker.
+Another implemented type of a random walker is a Gaussian random walker.
 ```@docs
 ExtensibleMCMC.GaussianRandomWalk
 ```
@@ -50,12 +46,18 @@ In addition, in order to run `HaarioTypeAdaptation`, the `update` transition ker
 ExtensibleMCMC.GaussianRandomWalkMix
 ```
 
-## Metropolis-adjusted Langevin algorithm (MALA)
+## (TODO) Metropolis-adjusted Langevin algorithm (MALA)
+-----------------
 
-## Hamiltonian Monte Carlo
+## (TODO) Hamiltonian Monte Carlo
+------------
+
+************
+***********
 
 # Custom MCMC updates and decorators
-Each `update` (that updates parameters) must implement
+-------------
+It is easy to define your own update functions. To do so, if your `update` updates parameters (if it does not, then it falls under the category of more advanced updates and the rules might differ) you **must** implement for it
 ```@docs
 ExtensibleMCMC.log_transition_density(updt::ExtensibleMCMC.MCMCParamUpdate, θ, θ°)
 ExtensibleMCMC.proposal!(updt::ExtensibleMCMC.MCMCParamUpdate, global_ws, ws::ExtensibleMCMC.LocalWorkspace, step)
@@ -73,7 +75,8 @@ ExtensibleMCMC.set_parameters!(
 )
 ```
 
-Additionally, the following methods are implemented, but may be overwritten:
+#### Optional
+Additionally, the following methods are implemented generically, but may be overwritten:
 ```@docs
 ExtensibleMCMC.log_prior(updt::ExtensibleMCMC.MCMCParamUpdate, θ)
 ExtensibleMCMC.coords(updt::ExtensibleMCMC.MCMCParamUpdate)
