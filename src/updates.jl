@@ -24,6 +24,8 @@ concerned with.
 """
 state(ws::GlobalWorkspace, updt::MCMCParamUpdate) = subidx(state(ws), updt)
 
+state(ws::GlobalWorkspace, updt::MCMCUpdate) = nothing
+
 #                    CUSTOM UPDATES AND LOW LEVEL METHODS
 #-------------------------------------------------------------------------------
 
@@ -178,6 +180,10 @@ struct RandomWalkUpdate{TRW,TA,K,TP} <: MCMCParamUpdate
 
         new{TRW,TA,K,TP}(rw, adpt, idx_of_global, invcoords, prior)
     end
+end
+
+function readjust!(updt::RandomWalkUpdate, adpt, mcmc_iter)
+    readjust!(updt.rw, adpt, mcmc_iter)
 end
 
 log_transition_density(updt::RandomWalkUpdate, θ, θ°) = logpdf(updt.rw, θ, θ°)

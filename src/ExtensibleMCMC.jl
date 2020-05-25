@@ -30,7 +30,7 @@ module ExtensibleMCMC
 
     export MCMC
     export UniformRandomWalk, GaussianRandomWalk, GaussianRandomWalkMix
-    export AdaptationUnifRW, HaarioTypeAdaptation
+    export AdaptationUnifRW, HaarioTypeAdaptation, NoAdaptation
     export RandomWalkUpdate
     export GenericMCMCBackend
     export GenericChainStats

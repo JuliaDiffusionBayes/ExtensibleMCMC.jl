@@ -270,13 +270,18 @@ end
 
 Adaptive readjustment of the range for sampling uniforms by the random walker.
 """
-function readjust!(rw::UniformRandomWalk, adpt::AdaptationUnifRW, mcmc_iter)
+function readjust!(rw::UniformRandomWalk, adpt, mcmc_iter)
     δ = compute_δ(adpt, mcmc_iter)
     a_r = acceptance_rate!(adpt)
     ϵ = compute_ϵ(rw.ϵ, adpt, a_r, δ)
     rw.ϵ = ϵ
     ϵ
 end
+
+function register!(updt, adpt::AdaptationUnifRW, accepted::AbstractArray{<:Bool}, v)
+    register!(updt, adpt, first(accepted), v)
+end
+
 
 """
     register!(adpt::AdaptationUnifRW, accepted::Bool, ::Any)
@@ -413,7 +418,7 @@ function time_to_update(::Val{true}, adpt::HaarioTypeAdaptation)
     ttu
 end
 
-function readjust!(rw::GaussianRandomWalkMix, adpt::HaarioTypeAdaptation, mcmc_iter)
+function readjust!(rw::GaussianRandomWalkMix, adpt, mcmc_iter)
     Σ = 2.38^2/length(rw)*adpt.cov
     rw.gsn_B.Σ = Symmetric(Σ)
     rw.λ = adpt.fλ(rw.λ, adpt.N, mcmc_iter)

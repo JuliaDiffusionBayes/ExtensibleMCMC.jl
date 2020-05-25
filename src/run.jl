@@ -141,22 +141,23 @@ function update_adaptation!(
     )
     # there may be a list, you must make sure that the first entry only is used
     # for param updates.
-    _accepted = first(accepted(local_ws, step.mcmciter))
+    _accepted = accepted(local_ws, step.mcmciter)
 
     for (i, updt) in enumerate(updates)
         update_adaptation!(_accepted, updt, global_ws, step, i)
     end
 end
 
+#=
 function update_adaptation!(
         accepted::Bool, updt::MCMCUpdate, global_ws, step, i
     )
     nothing
 end
-
+=#
 function update_adaptation!(
-        accepted::Bool, updt::MCMCParamUpdate, global_ws, step, i
-    )
+        accepted::T, updt::MCMCUpdate, global_ws, step, i
+    ) where T <: Union{Bool, AbstractArray{<:Bool}}
     typeof(updt.adpt) <: NoAdaptation && return
     _my_turn = Val(step.pidx==i)
     register_only_on_my_turn(_my_turn, updt.adpt) && return
@@ -164,8 +165,11 @@ function update_adaptation!(
     ttu = time_to_update(_my_turn, updt.adpt)
     #ttu && println("acceptance rate: ", acceptance_rate(updt.adpt))
     #ttu && println("old ϵ: ", updt.rw.ϵ)
-    ttu && readjust!(updt.rw, updt.adpt, step.mcmciter)
-    #ttu && println("new ϵ: ", updt.rw.ϵ)
+    #ttu && println("acceptance rate: ", acceptance_rate(updt.adpt.v[1]))
+    #ttu && println("old ρ: ", updt.ρs[1][1])
+    ttu && readjust!(updt, updt.adpt, step.mcmciter)
+    #ttu && println("new ρ: ", updt.ρs[1][1])
+    #ttu && println()
 end
 
 # overwrite for your custom adaptations if need be
