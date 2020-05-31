@@ -281,8 +281,8 @@ function accept_reject!(
 end
 
 #NOTE by default accept conjugate updates?
-function accept_reject!(updt::MCMCConjugateUpdate, global_ws, ws, step)
-    register_accept_reject_results!(true, updt, global_ws, ws, step, i)
+function accept_reject!(updt::MCMCConjugateParamUpdate, global_ws, ws, step)
+    register_accept_reject_results!(true, updt, global_ws, ws, step, 1)
 end
 
 """

@@ -278,10 +278,11 @@ function readjust!(rw::UniformRandomWalk, adpt, mcmc_iter)
     ϵ
 end
 
+#=
 function register!(updt, adpt::AdaptationUnifRW, accepted::AbstractArray{<:Bool}, v)
     register!(updt, adpt, first(accepted), v)
 end
-
+=#
 
 """
     register!(adpt::AdaptationUnifRW, accepted::Bool, ::Any)

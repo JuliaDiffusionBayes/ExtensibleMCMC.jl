@@ -222,5 +222,5 @@ struct HamiltonianMCUpdate <: MCMCGradientBasedUpdate
 end
 
 #TODO
-struct ConjugateGaussianUpdate <: MCMCConjugateUpdate
-end
+#struct ConjugateGaussianUpdate <: MCMCConjugateUpdate
+#end

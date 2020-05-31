@@ -32,6 +32,14 @@ without resorting to a Metropolis-Hastings algorithm
 abstract type MCMCConjugateUpdate <: MCMCUpdate end
 
 """
+    MCMCConjugateParamUpdate <: MCMCParamUpdate
+
+Supertype of all conjugate updates that update parameters and for which sampling
+can be done directly, without resorting to a Metropolis-Hastings algorithm
+"""
+abstract type MCMCConjugateParamUpdate <: MCMCParamUpdate end
+
+"""
     MCMCImputation <: MCMCUpdate
 
 Supertype of all updates that do not make any changes to the main parameter

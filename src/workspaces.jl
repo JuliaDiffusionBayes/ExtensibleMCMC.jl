@@ -300,9 +300,7 @@ end
 
 Set boolean for whether the ith update has been accepted.
 """
-function set_accepted!(ws::LocalWorkspace, i::Int, v)
-    error("set_accepted!(ws::LocalWorkspace, i) is not implemented")
-end
+set_accepted!(ws::LocalWorkspace, i::Int, v) = (ws.acceptance_history[i] = v)
 
 #=
         for custom LocalWorkspaces these methods will work so long as
@@ -475,5 +473,4 @@ function create_workspace(
 end
 
 accepted(ws::GenericLocalWorkspace, i::Int) = ws.acceptance_history[i]
-set_accepted!(ws::GenericLocalWorkspace, i::Int, v) = (ws.acceptance_history[i] = v)
 name_of_update(ws::GenericLocalWorkspace) = ws.updt_name
